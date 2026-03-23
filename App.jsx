@@ -469,26 +469,34 @@ function FinanceApp({user}){
           return(
             <div key={cat.id} style={S.card(over)}>
               <div style={{...S.row,marginBottom:bud>0?8:0}}>
-                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <div style={{display:'flex',alignItems:'center',gap:10,flex:1}}>
                   <span style={{fontSize:22}}>{cat.icon}</span>
-                  <div>
+                  <div style={{flex:1}}>
                     <div style={{fontSize:14,fontWeight:700}}>{cat.label}</div>
                     {over&&<div style={{fontSize:10,color:C.red}}>+{fmt(sp-bud)} sobre tope</div>}
                     {near&&<div style={{fontSize:10,color:C.amb}}>⚠️ {pct.toFixed(0)}% del tope</div>}
                   </div>
                 </div>
-                <div style={{textAlign:'right'}}>
-                  <div style={{fontSize:16,fontWeight:900,color:over?C.red:near?C.amb:cat.color}}>{fmt(sp)}</div>
-                  {editBud===cat.id?(
-                    <div style={{display:'flex',alignItems:'center',marginTop:3}}>
-                      <input style={S.iInp} value={tmpBud} onChange={e=>setTmpBud(e.target.value)} onKeyDown={e=>e.key==='Enter'&&saveBudget(cat.id)} autoFocus placeholder="0"/>
-                      <button style={S.smB(C.acc)} onClick={()=>saveBudget(cat.id)}>✓</button>
-                    </div>
-                  ):(
-                    <div style={{fontSize:11,color:C.mut,cursor:'pointer',marginTop:2}} onClick={()=>{setEditBud(cat.id);setTmpBud(String(bud||''))}}>
-                      Tope: {bud>0?fmt(bud):'Establecer'}
-                    </div>
-                  )}
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <div style={{textAlign:'right'}}>
+                    <div style={{fontSize:16,fontWeight:900,color:over?C.red:near?C.amb:cat.color}}>{fmt(sp)}</div>
+                    {editBud===cat.id?(
+                      <div style={{display:'flex',alignItems:'center',marginTop:3}}>
+                        <input style={S.iInp} value={tmpBud} onChange={e=>setTmpBud(e.target.value)} onKeyDown={e=>e.key==='Enter'&&saveBudget(cat.id)} autoFocus placeholder="0"/>
+                        <button style={S.smB(C.acc)} onClick={()=>saveBudget(cat.id)}>✓</button>
+                      </div>
+                    ):(
+                      <div style={{fontSize:11,color:C.mut,cursor:'pointer',marginTop:2}} onClick={()=>{setEditBud(cat.id);setTmpBud(String(bud||''))}}>
+                        Tope: {bud>0?fmt(bud):'Establecer'}
+                      </div>
+                    )}
+                  </div>
+                  {/* Edit button — visible on every category */}
+                  <button
+                    onClick={()=>{setEditCat(cat);setCatF({label:cat.label,icon:cat.icon,color:cat.color});setModal('cat')}}
+                    style={{background:'rgba(255,255,255,.06)',border:`1px solid ${C.bord}`,borderRadius:8,padding:'6px 8px',fontSize:14,color:C.mut,cursor:'pointer',flexShrink:0}}>
+                    ✏️
+                  </button>
                 </div>
               </div>
               {bud>0&&(
@@ -900,7 +908,7 @@ function FinanceApp({user}){
               <span style={{fontSize:16,fontWeight:700,color:catF.color}}>{catF.label||'Vista previa'}</span>
             </div>
             <button style={S.btn1(`${C.acc},#6366F1`)} onClick={saveCat}>{editCat?'Guardar cambios':'Crear categoría'}</button>
-            {editCat&&!editCat.is_default&&(
+            {editCat&&(
               <button style={{...S.btn2,color:C.red,borderColor:'rgba(248,113,113,.3)'}} onClick={()=>{deleteCat(editCat.id);setModal(null);setEditCat(null)}}>🗑️ Eliminar categoría</button>
             )}
             <button style={S.btn2} onClick={()=>{setModal(null);setEditCat(null)}}>Cancelar</button>
