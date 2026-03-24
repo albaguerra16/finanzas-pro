@@ -106,6 +106,7 @@ export async function fetchGoal(userId) {
   return data ? { target: data.target, deadline: data.deadline || '', label: data.label } : { target: 0, deadline: '', label: 'Mi meta' }
 }
 export async function upsertGoal(userId, goal) {
+  goal.deadline = goal.deadline || null
   await supabase.from('saving_goal').upsert({ user_id: userId, ...goal }, { onConflict: 'user_id' })
 }
 
