@@ -931,24 +931,16 @@ function FinanceApp({user}){
       {/* HEADER */}
       <div style={S.hdr}>
         <div style={S.hTop}>
-          {/* Profile */}
-          <div style={{display:'flex',alignItems:'center',gap:9,cursor:'pointer'}} onClick={()=>setModal('profile')}>
-            <div style={{width:34,height:34,borderRadius:'50%',background:profAvatar?'transparent':`linear-gradient(135deg,${C.acc},${C.grn})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,overflow:'hidden',flexShrink:0,border:`2px solid ${C.acc}55`}}>
-              {profAvatar?<img src={profAvatar} style={{width:'100%',height:'100%',objectFit:'cover'}} alt="p"/>:'👤'}
-            </div>
-            <div>
-              <div style={{fontSize:13,fontWeight:800,color:C.txt,lineHeight:1.1}}>{profName||'Mi perfil'}</div>
-              <div style={{fontSize:9,color:C.mut}}>{user.email?.split('@')[0]}</div>
-            </div>
-          </div>
+          <div style={S.logo}>💸 Finanzas Pro</div>
           <div style={{display:'flex',gap:6,alignItems:'center'}}>
             <button onClick={toggleDark} title={darkMode?'Modo claro':'Modo oscuro'}
-              style={{background:darkMode?'rgba(255,255,255,.08)':'rgba(0,0,0,.06)',border:`1px solid ${C.bord}`,borderRadius:20,color:C.txt,padding:'5px 10px',fontSize:15,cursor:'pointer',display:'flex',alignItems:'center',transition:'all .3s'}}>
+              style={{background:darkMode?'rgba(255,255,255,.08)':'rgba(0,0,0,.06)',border:`1px solid ${C.bord}`,borderRadius:20,color:C.txt,padding:'5px 10px',fontSize:15,cursor:'pointer',transition:'all .3s'}}>
               {darkMode?'☀️':'🌙'}
             </button>
             <select style={S.msel} value={selMon} onChange={e=>setSelMon(e.target.value)}>
               {last6.map(m=><option key={m.key} value={m.key}>{m.label}</option>)}
             </select>
+            <button onClick={()=>supabase.auth.signOut()} style={{background:darkMode?'rgba(255,255,255,.06)':'rgba(0,0,0,.05)',border:`1px solid ${C.bord}`,borderRadius:8,color:C.mut,padding:'5px 10px',fontSize:12,cursor:'pointer'}}>↩</button>
           </div>
         </div>
         <div style={S.statsRow}>
@@ -1231,42 +1223,7 @@ function FinanceApp({user}){
         )
       })()}
 
-      {/* PROFILE MODAL */}
-      {modal==='profile'&&(
-        <div style={S.overlay} onClick={e=>e.target===e.currentTarget&&setModal(null)}>
-          <div style={S.sheet}>
-            <div style={S.shT}>👤 Mi perfil</div>
-            <div style={{textAlign:'center',marginBottom:20}}>
-              <div style={{width:80,height:80,borderRadius:'50%',background:profAvatar?'transparent':`linear-gradient(135deg,${C.acc},${C.grn})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:profAvatar?0:32,margin:'0 auto 12px',overflow:'hidden',border:`3px solid ${C.acc}44`}}>
-                {profAvatar?<img src={profAvatar} style={{width:'100%',height:'100%',objectFit:'cover'}} alt="p"/>:'👤'}
-              </div>
-              <label style={{background:`rgba(129,140,248,.15)`,border:`1px solid rgba(129,140,248,.3)`,borderRadius:10,color:C.acc,padding:'7px 16px',fontSize:13,cursor:'pointer',fontWeight:700,display:'inline-block'}}>
-                📷 Cambiar foto
-                <input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{
-                  const f=e.target.files[0]; if(!f) return
-                  const r=new FileReader(); r.onload=ev=>setProfAvatar(ev.target.result); r.readAsDataURL(f)
-                }}/>
-              </label>
-              {profAvatar&&<button onClick={()=>setProfAvatar('')} style={{background:'none',border:'none',color:C.red,cursor:'pointer',fontSize:12,marginLeft:12}}>Quitar</button>}
-            </div>
-            <label style={S.lbl}>Tu nombre</label>
-            <input style={S.inp} type="text" placeholder="¿Cómo te llamas?" value={profName} onChange={e=>setProfName(e.target.value)}/>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderTop:`1px solid ${C.bord}`,marginBottom:12}}>
-              <span style={{fontSize:14,fontWeight:600}}>{darkMode?'🌙 Modo oscuro':'☀️ Modo claro'}</span>
-              <button onClick={toggleDark} style={{width:52,height:28,borderRadius:14,background:darkMode?C.acc:'rgba(0,0,0,.15)',border:'none',cursor:'pointer',position:'relative',transition:'background .3s'}}>
-                <div style={{width:22,height:22,borderRadius:'50%',background:'white',position:'absolute',top:3,left:darkMode?27:3,transition:'left .3s',boxShadow:'0 1px 4px rgba(0,0,0,.3)'}}/>
-              </button>
-            </div>
-            <button style={S.btn1(`${C.acc},#6366F1`)} onClick={()=>{
-              const p={name:profName,avatar:profAvatar}
-              localStorage.setItem('fn4_profile',JSON.stringify(p))
-              setModal(null);notify('Perfil guardado ✓')
-            }}>Guardar</button>
-            <button style={{...S.btn2,color:C.red,borderColor:'rgba(248,113,113,.3)',marginTop:8}} onClick={()=>supabase.auth.signOut()}>↩ Cerrar sesión</button>
-            <button style={S.btn2} onClick={()=>setModal(null)}>Cancelar</button>
-          </div>
-        </div>
-      )}
+
     </div>
   )
 }
