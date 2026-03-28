@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
- 
+
 const uid = () => supabase.auth.getUser().then(r => r.data.user?.id)
- 
+
 // ── CATEGORIES ──
 export async function fetchCategories(userId) {
   const { data } = await supabase.from('categories').select('*').eq('user_id', userId).order('sort_order')
@@ -14,7 +14,7 @@ export async function upsertCategory(userId, cat) {
 export async function deleteCategory(id) {
   await supabase.from('categories').delete().eq('id', id)
 }
- 
+
 // ── SALARIES ──
 export async function fetchSalaries(userId) {
   const { data } = await supabase.from('salaries').select('*').eq('user_id', userId)
@@ -25,7 +25,7 @@ export async function fetchSalaries(userId) {
 export async function upsertSalary(userId, monthKey, amount) {
   await supabase.from('salaries').upsert({ user_id: userId, month_key: monthKey, amount }, { onConflict: 'user_id,month_key' })
 }
- 
+
 // ── BUDGETS ──
 export async function fetchBudgets(userId) {
   const { data } = await supabase.from('budgets').select('*').eq('user_id', userId)
@@ -36,7 +36,7 @@ export async function fetchBudgets(userId) {
 export async function upsertBudget(userId, categoryId, amount) {
   await supabase.from('budgets').upsert({ user_id: userId, category_id: categoryId, amount }, { onConflict: 'user_id,category_id' })
 }
- 
+
 // ── EXPENSES ──
 export async function fetchExpenses(userId) {
   const { data } = await supabase.from('expenses').select('*').eq('user_id', userId).order('date', { ascending: false })
@@ -63,7 +63,7 @@ export async function updateExpense(id, exp) {
 export async function deleteExpense(id) {
   await supabase.from('expenses').delete().eq('id', id)
 }
- 
+
 // ── INCOMES ──
 export async function fetchIncomes(userId) {
   const { data } = await supabase.from('incomes').select('*').eq('user_id', userId).order('date', { ascending: false })
@@ -84,7 +84,7 @@ export async function insertIncome(userId, inc) {
 export async function deleteIncome(id) {
   await supabase.from('incomes').delete().eq('id', id)
 }
- 
+
 // ── RECURRING ──
 export async function fetchRecurring(userId) {
   const { data } = await supabase.from('recurring').select('*').eq('user_id', userId)
@@ -99,7 +99,7 @@ export async function insertRecurring(userId, rec) {
 export async function deleteRecurring(id) {
   await supabase.from('recurring').delete().eq('id', id)
 }
- 
+
 // ── SAVING GOAL ──
 export async function fetchGoal(userId) {
   const { data } = await supabase.from('saving_goal').select('*').eq('user_id', userId).single()
@@ -109,7 +109,7 @@ export async function upsertGoal(userId, goal) {
   goal.deadline = goal.deadline || null
   await supabase.from('saving_goal').upsert({ user_id: userId, ...goal }, { onConflict: 'user_id' })
 }
- 
+
 // ── NOTES ──
 export async function fetchNotes(userId) {
   const { data } = await supabase.from('notes').select('*').eq('user_id', userId)
@@ -120,7 +120,7 @@ export async function fetchNotes(userId) {
 export async function upsertNote(userId, monthKey, content) {
   await supabase.from('notes').upsert({ user_id: userId, month_key: monthKey, content }, { onConflict: 'user_id,month_key' })
 }
- 
+
 // ── DEBTS ──
 export async function fetchDebts(userId) {
   const { data: debts } = await supabase.from('debts').select('*').eq('user_id', userId)
@@ -158,4 +158,30 @@ export async function insertDebtPayment(userId, debtId, pay) {
 }
 export async function deleteDebtPayment(id) {
   await supabase.from('debt_payments').delete().eq('id', id)
+}
+
+// ── SAVING GOALS (multiple) ──
+export async function fetchGoals(userId) {
+  const { data } = await supabase.from('saving_goals').select('*').eq('user_id', userId).order('created_at')
+  return data?.map(g=>({id:g.id,label:g.label,target:g.target,saved:g.saved||0,deadline:g.deadline||'',color:g.color||'#34D399',icon:g.icon||'🎯'}))||[]
+}
+export async function insertGoalItem(userId, goal) {
+  const { data } = await supabase.from('saving_goals').insert({
+    user_id: userId, label: goal.label, target: goal.target,
+    saved: 0, deadline: goal.deadline||null, color: goal.color||'#34D399', icon: goal.icon||'🎯'
+  }).select().single()
+  return data
+}
+export async function updateGoalItem(id, goal) {
+  await supabase.from('saving_goals').update({
+    label: goal.label, target: goal.target,
+    deadline: goal.deadline||null, color: goal.color||'#34D399', icon: goal.icon||'🎯'
+  }).eq('id', id)
+}
+export async function deleteGoalItem(id) {
+  await supabase.from('saving_goals').delete().eq('id', id)
+}
+export async function addToGoalItem(id, amount) {
+  const { data: g } = await supabase.from('saving_goals').select('saved').eq('id', id).single()
+  await supabase.from('saving_goals').update({ saved: (g?.saved||0)+amount }).eq('id', id)
 }
