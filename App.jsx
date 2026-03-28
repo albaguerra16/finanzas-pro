@@ -38,6 +38,47 @@ function calcPayoffMonths(balance,monthly,annualRate){
   return Math.ceil(-Math.log(1-(balance*r/monthly))/Math.log(1+r))
 }
 
+/* ══════════════════════════════════════════ CSS ANIMATIONS ═══ */
+const ANIM_CSS = `
+@keyframes slideUp {
+  from { opacity:0; transform:translateY(20px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity:0; }
+  to   { opacity:1; }
+}
+@keyframes popIn {
+  0%   { opacity:0; transform:scale(0.85); }
+  70%  { transform:scale(1.03); }
+  100% { opacity:1; transform:scale(1); }
+}
+@keyframes slideDown {
+  from { opacity:0; transform:translateY(-16px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(129,140,248,0); }
+  50%      { box-shadow: 0 0 0 8px rgba(129,140,248,0.15); }
+}
+@keyframes shimmer {
+  from { background-position: -200% center; }
+  to   { background-position: 200% center; }
+}
+.slide-up   { animation: slideUp .35s cubic-bezier(.22,1,.36,1) both; }
+.fade-in    { animation: fadeIn .3s ease both; }
+.pop-in     { animation: popIn .4s cubic-bezier(.22,1,.36,1) both; }
+.slide-down { animation: slideDown .3s cubic-bezier(.22,1,.36,1) both; }
+`
+
+function InjectCSS(){
+  useEffect(()=>{
+    const el=document.getElementById('fn-anim-css')
+    if(!el){ const s=document.createElement('style'); s.id='fn-anim-css'; s.textContent=ANIM_CSS; document.head.appendChild(s) }
+  },[])
+  return null
+}
+
 /* ══════════════════════════════════════════ SPARKLINE ══════ */
 function Spark({data,color='#34D399',h=44}){
   if(!data||data.length<2) return null
@@ -96,10 +137,7 @@ function FinanceApp({user}){
   const [debts,     setDebts]    = useState([])
   const [dataReady, setDataReady]= useState(false)
   const [darkMode,  setDarkMode]  = useState(()=>localStorage.getItem('fn4_dark')!=='false')
-  const [profile,   setProfile]   = useState(()=>{ try{return JSON.parse(localStorage.getItem('fn4_profile')||'{}')}catch{return {}} })
-
   const toggleDark=()=>{ const v=!darkMode; setDarkMode(v); localStorage.setItem('fn4_dark',String(v)) }
-  const saveProfile=(p)=>{ setProfile(p); localStorage.setItem('fn4_profile',JSON.stringify(p)) }
 
   const [modal,      setModal]      = useState(null)
   const [notif,      setNotif]      = useState(null)
@@ -125,8 +163,7 @@ function FinanceApp({user}){
   const [catF,  setCatF]  = useState(blankCat)
   const [tmpBud,setTmpBud]= useState('')
   const [tmpSal,setTmpSal]= useState('')
-  const [profName, setProfName] = useState(()=>{ try{return JSON.parse(localStorage.getItem('fn4_profile')||'{}').name||''}catch{return ''} })
-  const [profAvatar, setProfAvatar] = useState(()=>{ try{return JSON.parse(localStorage.getItem('fn4_profile')||'{}').avatar||''}catch{return ''} })
+
 
   const notify=(msg,type='ok')=>{ setNotif({msg,type}); setTimeout(()=>setNotif(null),3000) }
 
@@ -424,7 +461,7 @@ function FinanceApp({user}){
     app:   {minHeight:'100vh',background:C.bg,color:C.txt,fontFamily:"'Plus Jakarta Sans',sans-serif",paddingBottom:88,transition:'background .3s,color .3s'},
     hdr:   {background:C.surf,borderBottom:`1px solid ${C.bord}`,padding:'18px 16px 0',position:'sticky',top:0,zIndex:100},
     hTop:  {display:'flex',justifyContent:'space-between',alignItems:'center',maxWidth:520,margin:'0 auto 12px'},
-    logo:  {fontSize:18,fontWeight:900,background:`linear-gradient(100deg,${C.acc},${C.grn})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'},
+    logo:  {fontSize:18,fontWeight:900,background:`linear-gradient(90deg,${C.acc},${C.grn},${C.acc})`,backgroundSize:'200% auto',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',animation:'shimmer 4s linear infinite'},
     msel:  {background:'rgba(255,255,255,0.07)',border:`1px solid ${C.bord}`,borderRadius:9,color:C.txt,padding:'5px 10px',fontSize:12,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif"},
     statsRow:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,maxWidth:520,margin:'0 auto 14px'},
     sCard: c=>({background:`rgba(${c},.09)`,border:`1px solid rgba(${c},.2)`,borderRadius:12,padding:'11px 10px',textAlign:'center'}),
@@ -438,13 +475,13 @@ function FinanceApp({user}){
     bnav:  {position:'fixed',bottom:0,left:0,right:0,background:darkMode?'rgba(7,7,18,.96)':'rgba(255,255,255,.96)',backdropFilter:'blur(20px)',borderTop:`1px solid ${C.bord}`,display:'flex',padding:'8px 0 16px',zIndex:150},
     nbtn:  a=>({flex:1,background:'none',border:'none',color:a?C.acc:C.mut,fontSize:10,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:3,transition:'color .2s'}),
     overlay:{position:'fixed',inset:0,background:'rgba(0,0,0,.8)',backdropFilter:'blur(12px)',zIndex:300,display:'flex',alignItems:'flex-end',justifyContent:'center'},
-    sheet: {background:darkMode?'#11111F':C.surf,border:`1px solid ${C.bord}`,borderRadius:'22px 22px 0 0',padding:'22px 20px 44px',width:'100%',maxWidth:520,maxHeight:'90vh',overflowY:'auto'},
+    sheet: {background:darkMode?'#11111F':C.surf,border:`1px solid ${C.bord}`,borderRadius:'22px 22px 0 0',padding:'22px 20px 44px',width:'100%',maxWidth:520,maxHeight:'90vh',overflowY:'auto',animation:'slideUp .35s cubic-bezier(.22,1,.36,1) both'},
     shT:   {fontSize:18,fontWeight:900,marginBottom:18},
     inp:   {width:'100%',background:'rgba(255,255,255,.06)',border:`1px solid ${C.bord}`,borderRadius:10,color:C.txt,padding:'11px 13px',fontSize:15,marginBottom:10,boxSizing:'border-box',outline:'none',fontFamily:"'Plus Jakarta Sans',sans-serif"},
     sel:   {width:'100%',background:'rgba(255,255,255,.06)',border:`1px solid ${C.bord}`,borderRadius:10,color:C.txt,padding:'11px 13px',fontSize:15,marginBottom:10,boxSizing:'border-box',cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif"},
     btn1:  g=>({width:'100%',background:`linear-gradient(135deg,${g})`,border:'none',borderRadius:12,color:'#fff',padding:'13px',fontSize:15,fontWeight:800,cursor:'pointer',marginTop:4,fontFamily:"'Plus Jakarta Sans',sans-serif"}),
     btn2:  {width:'100%',background:'rgba(255,255,255,.05)',border:`1px solid ${C.bord}`,borderRadius:12,color:C.txt,padding:'12px',fontSize:14,fontWeight:600,cursor:'pointer',marginTop:8,fontFamily:"'Plus Jakarta Sans',sans-serif"},
-    notif: t=>({position:'fixed',top:20,left:'50%',transform:'translateX(-50%)',background:t==='err'?C.red:C.grn,color:'#fff',padding:'10px 22px',borderRadius:12,fontSize:14,fontWeight:700,zIndex:500,whiteSpace:'nowrap',boxShadow:'0 4px 20px rgba(0,0,0,.5)'}),
+    notif: t=>({position:'fixed',top:24,left:'50%',transform:'translateX(-50%)',background:t==='err'?C.red:t==='warn'?C.amb:C.grn,color:'#fff',padding:'11px 24px',borderRadius:30,fontSize:14,fontWeight:700,zIndex:500,whiteSpace:'nowrap',boxShadow:'0 6px 24px rgba(0,0,0,.4)',display:'flex',alignItems:'center',gap:8}),
     iInp:  {background:'rgba(255,255,255,.08)',border:'1px solid rgba(129,140,248,.4)',borderRadius:8,color:C.txt,padding:'3px 8px',fontSize:13,width:88,textAlign:'right',fontFamily:"'Plus Jakarta Sans',sans-serif"},
     smB:   c=>({background:c,border:'none',borderRadius:7,color:'#fff',padding:'3px 9px',fontSize:12,cursor:'pointer',marginLeft:5,fontWeight:700}),
     srch:  {display:'flex',alignItems:'center',gap:8,background:'rgba(255,255,255,.05)',border:`1px solid ${C.bord}`,borderRadius:12,padding:'10px 14px',marginBottom:14},
@@ -452,11 +489,24 @@ function FinanceApp({user}){
     lbl:   {fontSize:11,color:C.mut,marginBottom:5,display:'block'},
   }
 
+  // ── Debt due notifications ──
+  const debtsDueSoon = debts.filter(d=>{
+    if(d.balance<=0||!d.dueDay) return false
+    const today=NOW.getDate()
+    const due=d.dueDay
+    return due>=today && due<=today+3
+  })
+  const debtsOverdue = debts.filter(d=>{
+    if(d.balance<=0||!d.dueDay) return false
+    return d.dueDay < NOW.getDate()
+  })
+
   if(!dataReady) return(
     <div style={{minHeight:'100vh',background:C.bg,display:'flex',alignItems:'center',justifyContent:'center'}}>
       <div style={{textAlign:'center'}}>
-        <div style={{fontSize:48,marginBottom:16}}>💸</div>
-        <div style={{color:C.mut,fontSize:14}}>Cargando tus datos...</div>
+        <div style={{fontSize:56,marginBottom:16,animation:'popIn .6s cubic-bezier(.22,1,.36,1) both'}}>💸</div>
+        <div style={{background:`linear-gradient(90deg,${C.acc},${C.grn},${C.acc})`,backgroundSize:'200% auto',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',fontSize:18,fontWeight:800,animation:'shimmer 2s linear infinite'}}>Finanzas Pro</div>
+        <div style={{color:C.mut,fontSize:13,marginTop:8}}>Cargando tus datos...</div>
       </div>
     </div>
   )
@@ -528,7 +578,7 @@ function FinanceApp({user}){
         {cats.map(cat=>{
           const sp=catSpent(cat.id),bud=catBudget(cat.id),pct=bud>0?(sp/bud)*100:0,over=bud>0&&sp>bud,near=bud>0&&!over&&pct>=80
           return(
-            <div key={cat.id} style={S.card(over)}>
+            <div key={cat.id} className="slide-up" style={{...S.card(over),animationDelay:`${cats.indexOf(cat)*0.05}s`}}>
               <div style={{...S.row,marginBottom:bud>0?8:0}}>
                 <div style={{display:'flex',alignItems:'center',gap:10,flex:1}}>
                   <span style={{fontSize:22}}>{cat.icon}</span>
@@ -611,7 +661,7 @@ function FinanceApp({user}){
               const months=calcPayoffMonths(d.balance,d.minPayment,d.interestRate)
               const pDate=months&&months!==Infinity?new Date(NOW.getFullYear(),NOW.getMonth()+months,1):null
               return(
-                <div key={d.id} style={{...S.card(false),borderLeft:`3px solid ${d.color||C.red}`,cursor:'pointer'}} onClick={()=>setDetailDebt(d)}>
+                <div key={d.id} className="slide-up" style={{...S.card(false),borderLeft:`3px solid ${d.color||C.red}`,cursor:'pointer',animationDelay:`${active.indexOf(d)*0.07}s`}} onClick={()=>setDetailDebt(d)}>
                   <div style={{...S.row,marginBottom:10}}>
                     <div style={{display:'flex',alignItems:'center',gap:10}}>
                       <div style={{width:42,height:42,borderRadius:12,background:`${d.color||C.red}20`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>{dt?.icon||'📄'}</div>
@@ -681,7 +731,7 @@ function FinanceApp({user}){
               searchResults.map(item=>{
                 const cat=cats.find(c=>c.id===item.category)
                 return(
-                  <div key={item.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 0',borderBottom:`1px solid ${C.bord}`}}>
+                  <div key={item.id} className="slide-up" style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 0',borderBottom:`1px solid ${C.bord}`,animationDelay:`${Math.min(all.indexOf(item)*0.03,0.3)}s`}}>
                     <div style={{display:'flex',alignItems:'center',gap:11}}>
                       <div style={{width:42,height:42,borderRadius:12,background:`${cat?.color||C.acc}28`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:19,border:`1px solid ${cat?.color||C.acc}40`}}>{cat?.icon||'📦'}</div>
                       <div><div style={{fontSize:14,fontWeight:600}}>{item.description||cat?.label}</div><div style={{fontSize:11,color:C.mut}}>{item.date} · {MNF[new Date(item.monthKey+'-01').getMonth()]}</div></div>
@@ -706,7 +756,7 @@ function FinanceApp({user}){
               all.map(item=>{
                 const cat=cats.find(c=>c.id===item.category),isInc=item.type==='ingreso'
                 return(
-                  <div key={item.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 0',borderBottom:`1px solid ${C.bord}`}}>
+                  <div key={item.id} className="slide-up" style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 0',borderBottom:`1px solid ${C.bord}`,animationDelay:`${Math.min(all.indexOf(item)*0.03,0.3)}s`}}>
                     <div style={{display:'flex',alignItems:'center',gap:11}}>
                       <div style={{width:44,height:44,borderRadius:13,background:isInc?'rgba(52,211,153,.18)':cat?`${cat.color}28`:'rgba(255,255,255,.08)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,border:`1px solid ${isInc?'rgba(52,211,153,.25)':cat?cat.color+'40':'rgba(255,255,255,.1)'}`,flexShrink:0}}>{isInc?'💰':cat?.icon||'📦'}</div>
                       <div><div style={{fontSize:14,fontWeight:600}}>{item.description||item.label||cat?.label}</div><div style={{fontSize:11,color:C.mut}}>{isInc?'Ingreso extra':cat?.label} · {item.date}</div></div>
@@ -874,27 +924,27 @@ function FinanceApp({user}){
   /* ════ RENDER ════ */
   return(
     <div style={S.app}>
-      {notif&&<div style={S.notif(notif.type)}>{notif.msg}</div>}
+      <InjectCSS/>
+      {notif&&<div style={{...S.notif(notif.type),animation:'slideDown .3s cubic-bezier(.22,1,.36,1) both'}}>{notif.msg}</div>}
+      {/* Debt due soon banner */}
+      {(debtsDueSoon.length>0||debtsOverdue.length>0)&&selMon===mk(NOW)&&(
+        <div className="slide-down" style={{background:debtsOverdue.length>0?'rgba(248,113,113,.1)':'rgba(251,191,36,.08)',borderBottom:`1px solid ${debtsOverdue.length>0?'rgba(248,113,113,.25)':'rgba(251,191,36,.2)'}`,padding:'10px 16px',display:'flex',alignItems:'center',gap:10}}>
+          <span style={{fontSize:18}}>{debtsOverdue.length>0?'🚨':'⏰'}</span>
+          <div style={{flex:1}}>
+            {debtsOverdue.length>0&&<div style={{fontSize:12,color:C.red,fontWeight:700}}>Vencidas: {debtsOverdue.map(d=>d.name).join(', ')}</div>}
+            {debtsDueSoon.length>0&&<div style={{fontSize:12,color:C.amb,fontWeight:700}}>Vencen en 3 días: {debtsDueSoon.map(d=>`${d.name} (día ${d.dueDay})`).join(', ')}</div>}
+          </div>
+          <button onClick={()=>setView('debts')} style={{background:'none',border:'none',color:debtsOverdue.length>0?C.red:C.amb,fontSize:12,cursor:'pointer',fontWeight:700}}>Ver →</button>
+        </div>
+      )}
 
       {/* HEADER */}
       <div style={S.hdr}>
         <div style={S.hTop}>
-          {/* Profile avatar + name */}
-          <div style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}} onClick={()=>setModal('profile')}>
-            <div style={{width:36,height:36,borderRadius:'50%',background:profile.avatar?'transparent':`linear-gradient(135deg,${C.acc},${C.grn})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:profile.avatar?0:16,overflow:'hidden',flexShrink:0,border:`2px solid ${C.acc}44`}}>
-              {profile.avatar
-                ? <img src={profile.avatar} style={{width:'100%',height:'100%',objectFit:'cover'}} alt="perfil"/>
-                : '👤'}
-            </div>
-            <div>
-              <div style={{fontSize:13,fontWeight:800,color:C.txt,lineHeight:1}}>{profile.name||'Mi perfil'}</div>
-              <div style={{fontSize:10,color:C.mut}}>{user.email?.split('@')[0]}</div>
-            </div>
-          </div>
+          <div style={S.logo}>💸 Finanzas Pro</div>
           <div style={{display:'flex',gap:6,alignItems:'center'}}>
-            {/* Dark/light toggle */}
             <button onClick={toggleDark} title={darkMode?'Modo claro':'Modo oscuro'}
-              style={{background:darkMode?'rgba(255,255,255,.08)':'rgba(0,0,0,.06)',border:`1px solid ${C.bord}`,borderRadius:20,color:C.txt,padding:'5px 10px',fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',gap:4,transition:'all .3s'}}>
+              style={{background:darkMode?'rgba(255,255,255,.08)':'rgba(0,0,0,.06)',border:`1px solid ${C.bord}`,borderRadius:20,color:C.txt,padding:'5px 10px',fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',transition:'all .3s'}}>
               {darkMode?'☀️':'🌙'}
             </button>
             <select style={S.msel} value={selMon} onChange={e=>setSelMon(e.target.value)}>
@@ -915,13 +965,15 @@ function FinanceApp({user}){
       </div>
 
       <div style={S.body}>
-        {view==='home'   &&<Home/>}
-        {view==='moves'  &&<Transactions/>}
-        {view==='debts'  &&<Debts/>}
-        {view==='savings'&&<Savings/>}
+        <div key={view} className="fade-in">
+          {view==='home'   &&<Home/>}
+          {view==='moves'  &&<Transactions/>}
+          {view==='debts'  &&<Debts/>}
+          {view==='savings'&&<Savings/>}
+        </div>
       </div>
 
-      <button style={S.fab} onClick={()=>{setEditExp(null);setExpF({...blankExp,category:cats[0]?.id||'comidas'});setModal('expense')}}>+</button>
+      <button style={{...S.fab,animation:'popIn .5s .2s cubic-bezier(.22,1,.36,1) both'}} onClick={()=>{setEditExp(null);setExpF({...blankExp,category:cats[0]?.id||'comidas'});setModal('expense')}}>+</button>
 
       <nav style={S.bnav}>
         {[{id:'home',icon:'🏠',l:'Inicio'},{id:'moves',icon:'📋',l:'Gastos'},{id:'debts',icon:'💳',l:'Deudas'},{id:'savings',icon:'🏦',l:'Ahorros'}].map(n=>(
@@ -1170,38 +1222,7 @@ function FinanceApp({user}){
           </div>
         )
       })()}
-      {/* PROFILE MODAL */}
-      {modal==='profile'&&(
-        <div style={S.overlay} onClick={e=>e.target===e.currentTarget&&setModal(null)}>
-          <div style={S.sheet}>
-            <div style={S.shT}>👤 Mi perfil</div>
-            <div style={{textAlign:'center',marginBottom:20}}>
-              <div style={{width:80,height:80,borderRadius:'50%',background:profAvatar?'transparent':`linear-gradient(135deg,${C.acc},${C.grn})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:profAvatar?0:32,margin:'0 auto 12px',overflow:'hidden',border:`3px solid ${C.acc}44`}}>
-                {profAvatar?<img src={profAvatar} style={{width:'100%',height:'100%',objectFit:'cover'}} alt="perfil"/>:'👤'}
-              </div>
-              <label style={{background:`rgba(129,140,248,.15)`,border:`1px solid rgba(129,140,248,.3)`,borderRadius:10,color:C.acc,padding:'7px 16px',fontSize:13,cursor:'pointer',fontWeight:700,display:'inline-block'}}>
-                📷 Cambiar foto
-                <input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{
-                  const f=e.target.files[0]; if(!f) return
-                  const r=new FileReader(); r.onload=ev=>setProfAvatar(ev.target.result); r.readAsDataURL(f)
-                }}/>
-              </label>
-              {profAvatar&&<button onClick={()=>setProfAvatar('')} style={{background:'none',border:'none',color:C.red,cursor:'pointer',fontSize:12,marginLeft:12}}>Quitar</button>}
-            </div>
-            <label style={S.lbl}>Tu nombre</label>
-            <input style={S.inp} type="text" placeholder="¿Cómo te llamas?" value={profName} onChange={e=>setProfName(e.target.value)}/>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderTop:`1px solid ${C.bord}`,marginBottom:12}}>
-              <span style={{fontSize:14,fontWeight:600}}>{darkMode?'🌙 Modo oscuro':'☀️ Modo claro'}</span>
-              <button onClick={toggleDark} style={{width:52,height:28,borderRadius:14,background:darkMode?C.acc:'rgba(0,0,0,.15)',border:'none',cursor:'pointer',position:'relative',transition:'background .3s'}}>
-                <div style={{width:22,height:22,borderRadius:'50%',background:'white',position:'absolute',top:3,left:darkMode?27:3,transition:'left .3s',boxShadow:'0 1px 4px rgba(0,0,0,.3)'}}/>
-              </button>
-            </div>
-            <button style={S.btn1(`${C.acc},#6366F1`)} onClick={()=>{saveProfile({name:profName,avatar:profAvatar});setModal(null);notify('Perfil guardado ✓')}}>Guardar</button>
-            <button style={{...S.btn2,marginTop:8,color:C.red,borderColor:'rgba(248,113,113,.3)'}} onClick={()=>supabase.auth.signOut()}>↩ Cerrar sesión</button>
-            <button style={S.btn2} onClick={()=>setModal(null)}>Cancelar</button>
-          </div>
-        </div>
-      )}
+
     </div>
   )
 }
