@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from './supabase'
 import Auth from './Auth'
 import * as db from './db'
@@ -95,6 +95,11 @@ function FinanceApp({user}){
   const [notes,     setNotes]    = useState({})
   const [debts,     setDebts]    = useState([])
   const [dataReady, setDataReady]= useState(false)
+  const [darkMode,  setDarkMode]  = useState(()=>localStorage.getItem('fn4_dark')!=='false')
+  const [profile,   setProfile]   = useState(()=>{ try{return JSON.parse(localStorage.getItem('fn4_profile')||'{}')}catch{return {}} })
+
+  const toggleDark=()=>{ const v=!darkMode; setDarkMode(v); localStorage.setItem('fn4_dark',String(v)) }
+  const saveProfile=(p)=>{ setProfile(p); localStorage.setItem('fn4_profile',JSON.stringify(p)) }
 
   const [modal,      setModal]      = useState(null)
   const [notif,      setNotif]      = useState(null)
@@ -410,9 +415,11 @@ function FinanceApp({user}){
   }
 
   /* ════════ STYLES ════════ */
-  const C={bg:'#070712',surf:'#0F0F1E',bord:'rgba(255,255,255,0.07)',acc:'#818CF8',grn:'#34D399',red:'#F87171',amb:'#FBBF24',txt:'#E8E8F8',mut:'rgba(255,255,255,0.38)'}
+  const C=darkMode
+    ? {bg:'#070712',surf:'#0F0F1E',bord:'rgba(255,255,255,0.07)',acc:'#818CF8',grn:'#34D399',red:'#F87171',amb:'#FBBF24',txt:'#E8E8F8',mut:'rgba(255,255,255,0.38)'}
+    : {bg:'#F0F2F8',surf:'#FFFFFF',bord:'rgba(0,0,0,0.08)',acc:'#6366F1',grn:'#059669',red:'#DC2626',amb:'#D97706',txt:'#1E1E2E',mut:'rgba(0,0,0,0.4)'}
   const S={
-    app:   {minHeight:'100vh',background:C.bg,color:C.txt,fontFamily:"'Plus Jakarta Sans',sans-serif",paddingBottom:88},
+    app:   {minHeight:'100vh',background:C.bg,color:C.txt,fontFamily:"'Plus Jakarta Sans',sans-serif",paddingBottom:88,transition:'background .3s,color .3s'},
     hdr:   {background:C.surf,borderBottom:`1px solid ${C.bord}`,padding:'18px 16px 0',position:'sticky',top:0,zIndex:100},
     hTop:  {display:'flex',justifyContent:'space-between',alignItems:'center',maxWidth:520,margin:'0 auto 12px'},
     logo:  {fontSize:18,fontWeight:900,background:`linear-gradient(100deg,${C.acc},${C.grn})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'},
@@ -426,10 +433,10 @@ function FinanceApp({user}){
     pbar:  {height:5,borderRadius:3,background:'rgba(255,255,255,.07)',overflow:'hidden'},
     pfill: (p,c,o)=>({height:'100%',borderRadius:3,width:`${Math.min(p,100)}%`,background:o?`linear-gradient(90deg,${C.red},#dc2626)`:`linear-gradient(90deg,${c},${c}88)`,transition:'width .5s'}),
     fab:   {position:'fixed',bottom:94,right:18,width:52,height:52,borderRadius:'50%',background:`linear-gradient(135deg,${C.acc},#6366F1)`,border:'none',color:'#fff',fontSize:24,cursor:'pointer',boxShadow:`0 4px 20px rgba(129,140,248,.45)`,zIndex:200,display:'flex',alignItems:'center',justifyContent:'center'},
-    bnav:  {position:'fixed',bottom:0,left:0,right:0,background:'rgba(7,7,18,.96)',backdropFilter:'blur(20px)',borderTop:`1px solid ${C.bord}`,display:'flex',padding:'8px 0 16px',zIndex:150},
+    bnav:  {position:'fixed',bottom:0,left:0,right:0,background:darkMode?'rgba(7,7,18,.96)':'rgba(255,255,255,.96)',backdropFilter:'blur(20px)',borderTop:`1px solid ${C.bord}`,display:'flex',padding:'8px 0 16px',zIndex:150},
     nbtn:  a=>({flex:1,background:'none',border:'none',color:a?C.acc:C.mut,fontSize:10,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:3,transition:'color .2s'}),
     overlay:{position:'fixed',inset:0,background:'rgba(0,0,0,.8)',backdropFilter:'blur(12px)',zIndex:300,display:'flex',alignItems:'flex-end',justifyContent:'center'},
-    sheet: {background:'#11111F',border:`1px solid ${C.bord}`,borderRadius:'22px 22px 0 0',padding:'22px 20px 44px',width:'100%',maxWidth:520,maxHeight:'90vh',overflowY:'auto'},
+    sheet: {background:darkMode?'#11111F':C.surf,border:`1px solid ${C.bord}`,borderRadius:'22px 22px 0 0',padding:'22px 20px 44px',width:'100%',maxWidth:520,maxHeight:'90vh',overflowY:'auto'},
     shT:   {fontSize:18,fontWeight:900,marginBottom:18},
     inp:   {width:'100%',background:'rgba(255,255,255,.06)',border:`1px solid ${C.bord}`,borderRadius:10,color:C.txt,padding:'11px 13px',fontSize:15,marginBottom:10,boxSizing:'border-box',outline:'none',fontFamily:"'Plus Jakarta Sans',sans-serif"},
     sel:   {width:'100%',background:'rgba(255,255,255,.06)',border:`1px solid ${C.bord}`,borderRadius:10,color:C.txt,padding:'11px 13px',fontSize:15,marginBottom:10,boxSizing:'border-box',cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif"},
@@ -674,7 +681,7 @@ function FinanceApp({user}){
                 return(
                   <div key={item.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 0',borderBottom:`1px solid ${C.bord}`}}>
                     <div style={{display:'flex',alignItems:'center',gap:11}}>
-                      <div style={{width:38,height:38,borderRadius:11,background:`${cat?.color||C.acc}18`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:17}}>{cat?.icon||'📦'}</div>
+                      <div style={{width:42,height:42,borderRadius:12,background:`${cat?.color||C.acc}28`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:19,border:`1px solid ${cat?.color||C.acc}40`}}>{cat?.icon||'📦'}</div>
                       <div><div style={{fontSize:14,fontWeight:600}}>{item.description||cat?.label}</div><div style={{fontSize:11,color:C.mut}}>{item.date} · {MNF[new Date(item.monthKey+'-01').getMonth()]}</div></div>
                     </div>
                     <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -699,7 +706,7 @@ function FinanceApp({user}){
                 return(
                   <div key={item.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 0',borderBottom:`1px solid ${C.bord}`}}>
                     <div style={{display:'flex',alignItems:'center',gap:11}}>
-                      <div style={{width:40,height:40,borderRadius:12,background:isInc?'rgba(52,211,153,.12)':cat?`${cat.color}15`:'rgba(255,255,255,.06)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>{isInc?'💰':cat?.icon||'📦'}</div>
+                      <div style={{width:44,height:44,borderRadius:13,background:isInc?'rgba(52,211,153,.18)':cat?`${cat.color}28`:'rgba(255,255,255,.08)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,border:`1px solid ${isInc?'rgba(52,211,153,.25)':cat?cat.color+'40':'rgba(255,255,255,.1)'}`,flexShrink:0}}>{isInc?'💰':cat?.icon||'📦'}</div>
                       <div><div style={{fontSize:14,fontWeight:600}}>{item.description||item.label||cat?.label}</div><div style={{fontSize:11,color:C.mut}}>{isInc?'Ingreso extra':cat?.label} · {item.date}</div></div>
                     </div>
                     <div style={{display:'flex',alignItems:'center',gap:7}}>
@@ -870,16 +877,33 @@ function FinanceApp({user}){
       {/* HEADER */}
       <div style={S.hdr}>
         <div style={S.hTop}>
-          <div style={S.logo}>💸 Finanzas Pro</div>
-          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          {/* Profile avatar + name */}
+          <div style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}} onClick={()=>setModal('profile')}>
+            <div style={{width:36,height:36,borderRadius:'50%',background:profile.avatar?'transparent':`linear-gradient(135deg,${C.acc},${C.grn})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:profile.avatar?0:16,overflow:'hidden',flexShrink:0,border:`2px solid ${C.acc}44`}}>
+              {profile.avatar
+                ? <img src={profile.avatar} style={{width:'100%',height:'100%',objectFit:'cover'}} alt="perfil"/>
+                : '👤'}
+            </div>
+            <div>
+              <div style={{fontSize:13,fontWeight:800,color:C.txt,lineHeight:1}}>{profile.name||'Mi perfil'}</div>
+              <div style={{fontSize:10,color:C.mut}}>{user.email?.split('@')[0]}</div>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:6,alignItems:'center'}}>
+            {/* Dark/light toggle */}
+            <button onClick={toggleDark} title={darkMode?'Modo claro':'Modo oscuro'}
+              style={{background:darkMode?'rgba(255,255,255,.08)':'rgba(0,0,0,.06)',border:`1px solid ${C.bord}`,borderRadius:20,color:C.txt,padding:'5px 10px',fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',gap:4,transition:'all .3s'}}>
+              {darkMode?'☀️':'🌙'}
+            </button>
             <select style={S.msel} value={selMon} onChange={e=>setSelMon(e.target.value)}>
               {last6.map(m=><option key={m.key} value={m.key}>{m.label}</option>)}
             </select>
-            <button onClick={()=>supabase.auth.signOut()} title="Cerrar sesión" style={{background:'rgba(255,255,255,.06)',border:`1px solid ${C.bord}`,borderRadius:8,color:C.mut,padding:'5px 10px',fontSize:12,cursor:'pointer'}}>↩</button>
+            <button onClick={()=>supabase.auth.signOut()} title="Cerrar sesión"
+              style={{background:darkMode?'rgba(255,255,255,.06)':'rgba(0,0,0,.05)',border:`1px solid ${C.bord}`,borderRadius:8,color:C.mut,padding:'5px 10px',fontSize:12,cursor:'pointer'}}>↩</button>
           </div>
         </div>
         <div style={S.statsRow}>
-          {[{lbl:'Ingreso',val:totalInc,c:'129,140,248'},{lbl:'Gastado',val:totalSpent,c:'248,113,113'},{lbl:available>=0?'Libre':'Déficit',val:Math.abs(available),c:available>=0?'52,211,153':'248,113,113'}].map(s=>(
+          {[{lbl:'Ingreso',val:totalInc,c:darkMode?'129,140,248':'99,102,241'},{lbl:'Gastado',val:totalSpent,c:'248,113,113'},{lbl:available>=0?'Libre':'Déficit',val:Math.abs(available),c:available>=0?darkMode?'52,211,153':'5,150,105':'248,113,113'}].map(s=>(
             <div key={s.lbl} style={S.sCard(s.c)}>
               <div style={{fontSize:9,color:C.mut,marginBottom:3,textTransform:'uppercase',letterSpacing:'.4px'}}>{s.lbl}</div>
               <div style={S.sVal(s.c)}>{fmt(s.val)}</div>
@@ -1140,6 +1164,45 @@ function FinanceApp({user}){
                 ))
               }
               <button onClick={()=>{setDetailDebt(null);setPayDebt(d);setPayF({amount:String(d.minPayment||''),date:todayStr,note:''});setModal('payment')}} style={{...S.btn1(`${C.grn},#10B981`),marginTop:16}}>💳 Registrar nuevo pago</button>
+            </div>
+          </div>
+        )
+      })()}
+      {/* PROFILE MODAL */}
+      {modal==='profile'&&(()=>{
+        const [nm,setNm]=React.useState(profile.name||'')
+        const [av,setAv]=React.useState(profile.avatar||'')
+        const handleImg=e=>{
+          const f=e.target.files[0]; if(!f) return
+          const r=new FileReader(); r.onload=ev=>setAv(ev.target.result); r.readAsDataURL(f)
+        }
+        return(
+          <div style={S.overlay} onClick={e=>e.target===e.currentTarget&&setModal(null)}>
+            <div style={S.sheet}>
+              <div style={S.shT}>👤 Mi perfil</div>
+              {/* Avatar */}
+              <div style={{textAlign:'center',marginBottom:20}}>
+                <div style={{width:80,height:80,borderRadius:'50%',background:av?'transparent':`linear-gradient(135deg,${C.acc},${C.grn})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:av?0:32,margin:'0 auto 12px',overflow:'hidden',border:`3px solid ${C.acc}44`}}>
+                  {av?<img src={av} style={{width:'100%',height:'100%',objectFit:'cover'}} alt="perfil"/>:'👤'}
+                </div>
+                <label style={{background:`rgba(129,140,248,.15)`,border:`1px solid rgba(129,140,248,.3)`,borderRadius:10,color:C.acc,padding:'7px 16px',fontSize:13,cursor:'pointer',fontWeight:700,display:'inline-block'}}>
+                  📷 Cambiar foto
+                  <input type="file" accept="image/*" style={{display:'none'}} onChange={handleImg}/>
+                </label>
+                {av&&<button onClick={()=>setAv('')} style={{background:'none',border:'none',color:C.red,cursor:'pointer',fontSize:12,marginLeft:12}}>Quitar foto</button>}
+              </div>
+              <label style={S.lbl}>Tu nombre</label>
+              <input style={S.inp} type="text" placeholder="¿Cómo te llamas?" value={nm} onChange={e=>setNm(e.target.value)}/>
+              {/* Dark mode toggle inside profile */}
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderTop:`1px solid ${C.bord}`,marginBottom:12}}>
+                <span style={{fontSize:14,fontWeight:600}}>{darkMode?'🌙 Modo oscuro':'☀️ Modo claro'}</span>
+                <button onClick={toggleDark} style={{width:52,height:28,borderRadius:14,background:darkMode?C.acc:'rgba(0,0,0,.12)',border:'none',cursor:'pointer',position:'relative',transition:'background .3s'}}>
+                  <div style={{width:22,height:22,borderRadius:'50%',background:'white',position:'absolute',top:3,left:darkMode?27:3,transition:'left .3s',boxShadow:'0 1px 4px rgba(0,0,0,.3)'}}/>
+                </button>
+              </div>
+              <button style={S.btn1(`${C.acc},#6366F1`)} onClick={()=>{saveProfile({name:nm,avatar:av});setModal(null);notify('Perfil guardado ✓')}}>Guardar</button>
+              <button style={{...S.btn2,marginTop:8,color:C.red,borderColor:'rgba(248,113,113,.3)'}} onClick={()=>{ if(confirm('¿Cerrar sesión?')) supabase.auth.signOut() }}>↩ Cerrar sesión</button>
+              <button style={S.btn2} onClick={()=>setModal(null)}>Cancelar</button>
             </div>
           </div>
         )
