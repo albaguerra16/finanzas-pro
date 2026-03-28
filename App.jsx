@@ -153,6 +153,7 @@ function FinanceApp({user}){
   const [payDebt,    setPayDebt]    = useState(null)
   const [detailDebt, setDetailDebt] = useState(null)
   const [editCat,    setEditCat]    = useState(null)
+  const [selCat,     setSelCat]     = useState(null)  // category detail view
 
   const blankExp  = {category:cats[0]?.id||'comidas', amount:'', description:'', date:todayStr}
   const blankDebt = {name:'', type:'tarjeta', balance:'', originalAmount:'', minPayment:'', interestRate:'', dueDay:'', dueMonth:'', color:'#F87171'}
@@ -606,7 +607,7 @@ function FinanceApp({user}){
         {cats.map(cat=>{
           const sp=catSpent(cat.id),bud=catBudget(cat.id),pct=bud>0?(sp/bud)*100:0,over=bud>0&&sp>bud,near=bud>0&&!over&&pct>=80
           return(
-            <div key={cat.id} className="slide-up" style={{...S.card(over),animationDelay:`${cats.indexOf(cat)*0.05}s`}}>
+            <div key={cat.id} className="slide-up" style={{...S.card(over),animationDelay:`${cats.indexOf(cat)*0.05}s`,cursor:'pointer'}} onClick={()=>setSelCat(cat)}>
               <div style={{...S.row,marginBottom:bud>0?8:0}}>
                 <div style={{display:'flex',alignItems:'center',gap:10,flex:1}}>
                   <span style={{fontSize:22}}>{cat.icon}</span>
@@ -632,7 +633,7 @@ function FinanceApp({user}){
                   </div>
                   {/* Edit button — visible on every category */}
                   <button
-                    onClick={()=>{setEditCat(cat);setCatF({label:cat.label,icon:cat.icon,color:cat.color});setModal('cat')}}
+                    onClick={e=>{e.stopPropagation();setEditCat(cat);setCatF({label:cat.label,icon:cat.icon,color:cat.color});setModal('cat')}}
                     style={{background:'rgba(255,255,255,.06)',border:`1px solid ${C.bord}`,borderRadius:8,padding:'6px 8px',fontSize:14,color:C.mut,cursor:'pointer',flexShrink:0}}>
                     ✏️
                   </button>
@@ -1259,6 +1260,79 @@ function FinanceApp({user}){
       })()}
 
 
+      {/* CATEGORY DETAIL MODAL */}
+      {selCat&&(()=>{
+        const catExps=[...monExp.filter(e=>e.category===selCat.id)].sort((a,b)=>b.date.localeCompare(a.date))
+        const catTotal=catExps.reduce((s,e)=>s+e.amount,0)
+        const bud=catBudget(selCat.id)
+        const pct=bud>0?Math.min(100,(catTotal/bud)*100):0
+        const over=bud>0&&catTotal>bud
+        return(
+          <div style={S.overlay} onClick={e=>e.target===e.currentTarget&&setSelCat(null)}>
+            <div style={{...S.sheet,maxHeight:'85vh'}}>
+              {/* pill handle */}
+              <div style={{width:36,height:4,borderRadius:99,background:'rgba(255,255,255,.15)',margin:'-8px auto 20px'}}/>
+              {/* Header */}
+              <div style={{...S.row,marginBottom:16}}>
+                <div style={{display:'flex',alignItems:'center',gap:12}}>
+                  <div style={{width:48,height:48,borderRadius:16,background:`${selCat.color}22`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,border:`1px solid ${selCat.color}44`}}>
+                    {selCat.icon}
+                  </div>
+                  <div>
+                    <div style={{fontSize:20,fontWeight:900}}>{selCat.label}</div>
+                    <div style={{fontSize:12,color:C.mut}}>{MNF[new Date(selMon+'-01').getMonth()]} · {catExps.length} movimiento{catExps.length!==1?'s':''}</div>
+                  </div>
+                </div>
+                <button onClick={()=>setSelCat(null)} style={{background:'rgba(255,255,255,.08)',border:'none',borderRadius:99,width:32,height:32,color:C.mut,cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+              </div>
+              {/* Total + progress */}
+              <div style={{background:`${selCat.color}12`,border:`1px solid ${selCat.color}30`,borderRadius:14,padding:'14px 16px',marginBottom:16}}>
+                <div style={{...S.row,marginBottom:bud>0?10:0}}>
+                  <div>
+                    <div style={{fontSize:11,color:C.mut,marginBottom:3}}>Total gastado</div>
+                    <div style={{fontSize:28,fontWeight:900,color:over?C.red:selCat.color}}>{fmt(catTotal)}</div>
+                  </div>
+                  {bud>0&&<div style={{textAlign:'right'}}>
+                    <div style={{fontSize:11,color:C.mut,marginBottom:3}}>Tope</div>
+                    <div style={{fontSize:18,fontWeight:800,color:C.mut}}>{fmt(bud)}</div>
+                    <div style={{fontSize:11,color:over?C.red:C.grn,fontWeight:700}}>{over?`+${fmt(catTotal-bud)} sobre`:`${fmt(bud-catTotal)} libre`}</div>
+                  </div>}
+                </div>
+                {bud>0&&(
+                  <>
+                    <div style={S.pbar}><div style={{height:'100%',borderRadius:99,width:`${pct}%`,background:over?`linear-gradient(90deg,${C.red},#f43f5e)`:`linear-gradient(90deg,${selCat.color},${selCat.color}88)`,transition:'width .6s'}}/></div>
+                    <div style={{fontSize:11,color:C.mut,marginTop:4}}>{pct.toFixed(0)}% del presupuesto usado</div>
+                  </>
+                )}
+              </div>
+              {/* Movements list */}
+              <div style={{fontSize:11,color:C.mut,fontWeight:800,textTransform:'uppercase',letterSpacing:'1px',marginBottom:10}}>Movimientos</div>
+              {catExps.length===0?(
+                <div style={{textAlign:'center',color:C.mut,padding:'30px 0',fontSize:13}}>Sin gastos en esta categoría</div>
+              ):(
+                <div style={{overflowY:'auto',maxHeight:300}}>
+                  {catExps.map((exp,i)=>(
+                    <div key={exp.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 0',borderBottom:i<catExps.length-1?`1px solid ${C.bord}`:'none'}}>
+                      <div>
+                        <div style={{fontSize:14,fontWeight:600}}>{exp.description||selCat.label}</div>
+                        <div style={{fontSize:11,color:C.mut}}>{exp.date}</div>
+                      </div>
+                      <div style={{display:'flex',alignItems:'center',gap:8}}>
+                        <span style={{fontSize:15,fontWeight:800,color:selCat.color}}>{fmt(exp.amount)}</span>
+                        <button onClick={()=>deleteExp(exp.id,selMon)} style={{background:'none',border:'none',color:'rgba(248,113,113,.5)',cursor:'pointer',fontSize:14,padding:'3px'}}>✕</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Quick add to this category */}
+              <button style={{...S.btn1(`${selCat.color},${selCat.color}cc`),marginTop:16}} onClick={()=>{setSelCat(null);setExpF({...blankExp,category:selCat.id});setModal('expense')}}>
+                + Agregar gasto en {selCat.label}
+              </button>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
