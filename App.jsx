@@ -1,4 +1,4 @@
-mport React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from './supabase'
 import Auth from './Auth'
 import * as db from './db'
@@ -517,13 +517,23 @@ function FinanceApp({user}){
   const Home=()=>{
     const totalBudget=Object.values(budgets).reduce((s,v)=>s+v,0)
     const debtBannerEl=(debtsDueSoon.length>0||debtsOverdue.length>0)&&selMon===mk(NOW)?(
-      <div className="slide-down" style={{background:debtsOverdue.length>0?'rgba(248,113,113,.08)':'rgba(251,191,36,.07)',border:`1px solid ${debtsOverdue.length>0?'rgba(248,113,113,.2)':'rgba(251,191,36,.18)'}`,borderRadius:14,padding:'12px 14px',display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
-        <span style={{fontSize:20}}>{debtsOverdue.length>0?'🚨':'⏰'}</span>
-        <div style={{flex:1}}>
-          {debtsOverdue.length>0&&<div style={{fontSize:12,color:C.red,fontWeight:700,marginBottom:2}}>Vencidas: {debtsOverdue.map(d=>d.name).join(', ')}</div>}
-          {debtsDueSoon.length>0&&<div style={{fontSize:12,color:C.amb,fontWeight:700}}>Vencen pronto: {debtsDueSoon.map(d=>`${d.name} día ${d.dueDay}`).join(' · ')}</div>}
+      <div className="slide-down" onClick={()=>setView('debts')} style={{
+        display:'flex',alignItems:'center',gap:10,marginBottom:12,cursor:'pointer',
+        background:darkMode?'rgba(255,255,255,.04)':'rgba(0,0,0,.04)',
+        border:`1px solid ${debtsOverdue.length>0?'rgba(248,113,113,.25)':'rgba(251,191,36,.25)'}`,
+        borderLeft:`3px solid ${debtsOverdue.length>0?C.red:C.amb}`,
+        borderRadius:12,padding:'10px 14px'
+      }}>
+        <span style={{fontSize:16,flexShrink:0}}>{debtsOverdue.length>0?'🔴':'🟡'}</span>
+        <div style={{flex:1,minWidth:0}}>
+          {debtsOverdue.length>0&&<div style={{fontSize:11,color:C.red,fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+            Vencidas: {debtsOverdue.map(d=>d.name).join(', ')}
+          </div>}
+          {debtsDueSoon.length>0&&<div style={{fontSize:11,color:C.amb,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+            Próximas: {debtsDueSoon.map(d=>`${d.name} día ${d.dueDay}`).join(' · ')}
+          </div>}
         </div>
-        <button onClick={()=>setView('debts')} style={{background:'none',border:'none',color:debtsOverdue.length>0?C.red:C.amb,fontSize:13,cursor:'pointer',fontWeight:800,flexShrink:0}}>Ver →</button>
+        <span style={{color:debtsOverdue.length>0?C.red:C.amb,fontSize:12,flexShrink:0}}>→</span>
       </div>
     ):null
     const globPct=totalBudget>0?(totalSpent/totalBudget)*100:(totalInc>0?(totalSpent/totalInc)*100:0)
