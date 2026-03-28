@@ -1,4 +1,4 @@
-mport React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from './supabase'
 import Auth from './Auth'
 import * as db from './db'
