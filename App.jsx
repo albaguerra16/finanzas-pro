@@ -28,7 +28,7 @@ const MNF = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','
 const NOW = new Date()
 const mk  = d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
 const fmt = n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',minimumFractionDigits:0}).format(n||0)
-const todayStr = NOW.toISOString().split('T')[0]
+const todayStr = `${NOW.getFullYear()}-${String(NOW.getMonth()+1).padStart(2,'0')}-${String(NOW.getDate()).padStart(2,'0')}`
 
 function calcPayoffMonths(balance,monthly,annualRate){
   if(monthly<=0||balance<=0) return null
@@ -91,6 +91,7 @@ function FinanceApp({user}){
   const [incomes,   setIncomes]  = useState({})
   const [recur,     setRecur]    = useState([])
   const [goal,      setGoal]     = useState({target:0,deadline:'',label:'Mi meta'})
+  const [goals,     setGoals]    = useState([])  // multiple goals
   const [notes,     setNotes]    = useState({})
   const [debts,     setDebts]    = useState([])
   const [dataReady, setDataReady]= useState(false)
@@ -113,6 +114,7 @@ function FinanceApp({user}){
   const [incF,  setIncF]  = useState({label:'',amount:'',date:todayStr})
   const [recF,  setRecF]  = useState({label:'',amount:'',category:'comidas',day:1})
   const [goalF, setGoalF] = useState({target:'',deadline:'',label:''})
+  const [editGoalItem, setEditGoalItem] = useState(null)  // which goal being edited
   const [debtF, setDebtF] = useState(blankDebt)
   const [payF,  setPayF]  = useState({amount:'',date:todayStr,note:''})
   const [catF,  setCatF]  = useState(blankCat)
@@ -125,10 +127,11 @@ function FinanceApp({user}){
   useEffect(()=>{
     if(!user) return
     const load = async()=>{
-      const [c,s,b,e,i,r,g,n,d] = await Promise.all([
+      const [c,s,b,e,i,r,g,n,d,gs] = await Promise.all([
         db.fetchCategories(user.id), db.fetchSalaries(user.id), db.fetchBudgets(user.id),
         db.fetchExpenses(user.id),   db.fetchIncomes(user.id),   db.fetchRecurring(user.id),
-        db.fetchGoal(user.id),       db.fetchNotes(user.id),     db.fetchDebts(user.id)
+        db.fetchGoal(user.id),       db.fetchNotes(user.id),     db.fetchDebts(user.id),
+        db.fetchGoals(user.id)
       ])
       if(c.length>0) setCats(c.map(x=>({...x, id:x.id})))
       else {
@@ -137,7 +140,7 @@ function FinanceApp({user}){
         setCats(inserted.filter(Boolean))
       }
       setSalaries(s); setBudgets(b); setExpenses(e); setIncomes(i)
-      setRecur(r); setGoal(g); setNotes(n); setDebts(d)
+      setRecur(r); setGoal(g); setNotes(n); setDebts(d); setGoals(gs||[])
       setDataReady(true)
     }
     load()
@@ -206,6 +209,7 @@ function FinanceApp({user}){
   // ── Actions ──
   const saveExpense=async()=>{
     if(!expF.amount||+expF.amount<=0){notify('Monto inválido','err');return}
+    if(saveExpense._saving) return; saveExpense._saving=true
     const mk2=expF.date.slice(0,7)
     if(editExp){
       await db.updateExpense(editExp.id, expF)
@@ -216,6 +220,7 @@ function FinanceApp({user}){
       if(row) setExpenses(p=>({...p,[mk2]:[...(p[mk2]||[]),{id:row.id,...expF,amount:+expF.amount}]}))
       notify('Gasto agregado ✓')
     }
+    saveExpense._saving=false
     setEditExp(null);setExpF(blankExp);setModal(null)
   }
 
@@ -270,6 +275,40 @@ function FinanceApp({user}){
     const g={target:+goalF.target||0,deadline:goalF.deadline,label:goalF.label||'Mi meta'}
     await db.upsertGoal(user.id,g)
     setGoal(g);setModal(null);notify('Meta guardada ✓')
+  }
+
+  const saveGoalItem=async()=>{
+    if(!goalF.label||!goalF.target){notify('Completa nombre y monto','err');return}
+    const g={label:goalF.label,target:+goalF.target,deadline:goalF.deadline||null,color:goalF.color||'#34D399',icon:goalF.icon||'🎯'}
+    if(editGoalItem){
+      const row=await db.updateGoalItem(editGoalItem.id,g)
+      setGoals(p=>p.map(x=>x.id===editGoalItem.id?{...x,...g}:x))
+      notify('Meta actualizada ✓')
+    } else {
+      const row=await db.insertGoalItem(user.id,g)
+      if(row) setGoals(p=>[...p,{id:row.id,...g,saved:0}])
+      notify('Meta creada ✓')
+    }
+    setEditGoalItem(null);setGoalF({target:'',deadline:'',label:'',color:'#34D399',icon:'🎯'});setModal(null)
+  }
+
+  const deleteGoalItem=async(id)=>{
+    await db.deleteGoalItem(id)
+    setGoals(p=>p.filter(x=>x.id!==id))
+    notify('Meta eliminada')
+  }
+
+  const addToGoal=async(goalId,amount,catId)=>{
+    if(!amount||+amount<=0){notify('Monto inválido','err');return}
+    // register as expense in savings category
+    const savCat=cats.find(c=>c.label==='Ahorros')||cats.find(c=>c.id==='ahorros')||cats[cats.length-1]
+    const exp={category:savCat?.id||catId,amount:+amount,description:`Ahorro: ${goals.find(g=>g.id===goalId)?.label||''}`,date:todayStr}
+    const row=await db.insertExpense(user.id,exp)
+    if(row) setExpenses(p=>({...p,[todayStr.slice(0,7)]:[...(p[todayStr.slice(0,7)]||[]),{id:row.id,...exp}]}))
+    // update goal saved amount
+    await db.addToGoalItem(goalId,+amount)
+    setGoals(p=>p.map(g=>g.id===goalId?{...g,saved:(g.saved||0)+(+amount)}:g))
+    notify('Abono a meta registrado ✓')
   }
 
   const saveSalary=async(mk2)=>{
@@ -335,9 +374,7 @@ function FinanceApp({user}){
     const newBal=Math.max(0,payDebt.balance-amount)
     await db.updateDebt(payDebt.id,{...payDebt,balance:newBal})
     const payRow=await db.insertDebtPayment(user.id,payDebt.id,{...payF,amount})
-    const expRow=await db.insertExpense(user.id,{category:'extra',amount,description:`Pago: ${payDebt.name}`,date:payF.date})
     setDebts(p=>p.map(d=>d.id!==payDebt.id?d:{...d,balance:newBal,payments:[...(d.payments||[]),(payRow?{id:payRow.id,date:payF.date,amount,note:payF.note}:{})]}))
-    if(expRow) setExpenses(p=>({...p,[payF.date.slice(0,7)]:[...(p[payF.date.slice(0,7)]||[]),{id:expRow.id,category:'extra',amount,description:`Pago: ${payDebt.name}`,date:payF.date}]}))
     setPayF({amount:'',date:todayStr,note:''});setPayDebt(null);setModal(null)
     notify('Pago registrado ✓')
   }
@@ -605,7 +642,7 @@ function FinanceApp({user}){
 
   /* ════ TRANSACTIONS ════ */
   const Transactions=()=>{
-    const all=[...monExp.map(e=>({...e,type:'gasto'})),...monInc.map(e=>({...e,type:'ingreso'}))].sort((a,b)=>new Date(b.date)-new Date(a.date))
+    const all=[...monExp.map(e=>({...e,type:'gasto'})),...monInc.map(e=>({...e,type:'ingreso'}))].sort((a,b)=>b.date.localeCompare(a.date)||(b.id>a.id?-1:1))
     return(
       <div>
         <div style={S.srch}>
@@ -689,55 +726,113 @@ function FinanceApp({user}){
 
   /* ════ SAVINGS ════ */
   const Savings=()=>{
-    const monSaved=catSpent('ahorros')
+    const savCat=cats.find(c=>c.label==='Ahorros')||cats.find(c=>c.id==='ahorros')
+    const monSaved=savCat?catSpent(savCat.id):0
+    const allSaved=Object.values(expenses).flat().filter(e=>savCat?e.category===savCat.id:e.category==='ahorros').reduce((s,e)=>s+e.amount,0)
+
+    // Weekly summary
+    const weekStart=new Date(NOW); weekStart.setDate(NOW.getDate()-NOW.getDay())
+    const weekStr=weekStart.toISOString().split('T')[0]
+    const weekExp=monExp.filter(e=>e.date>=weekStr).reduce((s,e)=>s+e.amount,0)
+    const daysInMonth=new Date(NOW.getFullYear(),NOW.getMonth()+1,0).getDate()
+    const weeksInMonth=daysInMonth/7
+    const avgWeekly=totalSpent>0?(totalSpent/(NOW.getDate()/7)):0
+    const weekDiff=weekExp-avgWeekly
+
+    const [addGoalId,setAddGoalId]=useState(null)
+    const [addAmt,setAddAmt]=useState('')
+
     return(
       <div>
-        <div style={{...S.card(false),background:'linear-gradient(135deg,rgba(52,211,153,.07),rgba(16,185,129,.04))',border:'1px solid rgba(52,211,153,.2)',textAlign:'center',padding:'22px 16px'}}>
-          <div style={{fontSize:11,color:C.mut,marginBottom:16,textTransform:'uppercase',letterSpacing:'1px'}}>{goal.label||'Meta de ahorro'}</div>
-          <div style={{position:'relative',width:140,height:140,margin:'0 auto 14px'}}>
-            <svg viewBox="0 0 140 140" style={{width:140,height:140,transform:'rotate(-90deg)'}}>
-              <defs><linearGradient id="gr1" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#34D399"/><stop offset="100%" stopColor="#10B981"/></linearGradient></defs>
-              <circle cx="70" cy="70" r="58" fill="none" stroke="rgba(255,255,255,.06)" strokeWidth="10"/>
-              <circle cx="70" cy="70" r="58" fill="none" stroke="url(#gr1)" strokeWidth="10"
-                strokeDasharray={`${2*Math.PI*58}`} strokeDashoffset={`${2*Math.PI*58*(1-goalPct/100)}`}
-                strokeLinecap="round" style={{transition:'stroke-dashoffset 1s ease'}}/>
-            </svg>
-            <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
-              <div style={{fontSize:26,fontWeight:900,color:C.grn}}>{goalPct.toFixed(0)}%</div>
-              <div style={{fontSize:10,color:C.mut}}>alcanzado</div>
+        {/* Weekly summary */}
+        <div style={{...S.card(false),background:'linear-gradient(135deg,rgba(129,140,248,.08),rgba(99,102,241,.04))',border:'1px solid rgba(129,140,248,.2)'}}>
+          <div style={{fontSize:11,color:C.mut,marginBottom:10,textTransform:'uppercase',letterSpacing:'1px'}}>📅 Resumen semanal</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            <div style={{textAlign:'center',background:'rgba(255,255,255,.03)',borderRadius:10,padding:'10px'}}>
+              <div style={{fontSize:10,color:C.mut,marginBottom:4}}>Esta semana</div>
+              <div style={{fontSize:20,fontWeight:900,color:C.acc}}>{fmt(weekExp)}</div>
+            </div>
+            <div style={{textAlign:'center',background:'rgba(255,255,255,.03)',borderRadius:10,padding:'10px'}}>
+              <div style={{fontSize:10,color:C.mut,marginBottom:4}}>Promedio semanal</div>
+              <div style={{fontSize:20,fontWeight:900,color:C.mut}}>{fmt(Math.round(avgWeekly))}</div>
             </div>
           </div>
-          <div style={{fontSize:30,fontWeight:900,color:C.grn}}>{fmt(totalSaved)}</div>
-          {goal.target>0&&<div style={{fontSize:13,color:C.mut,marginTop:2}}>de {fmt(goal.target)}</div>}
-          {daysLeft!==null&&<div style={{fontSize:12,color:daysLeft<30?C.amb:C.mut,marginTop:6}}>{daysLeft>0?`${daysLeft} días para la meta`:'¡Meta cumplida! 🎉'}</div>}
-          <button onClick={()=>{setGoalF({target:String(goal.target||''),deadline:goal.deadline||'',label:goal.label||''});setModal('goal')}}
-            style={{background:'rgba(52,211,153,.14)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,color:C.grn,padding:'8px 20px',fontSize:13,cursor:'pointer',marginTop:14,fontWeight:700}}>
-            {goal.target>0?'Editar meta':'Definir meta'}
-          </button>
+          <div style={{marginTop:10,fontSize:12,textAlign:'center',color:weekDiff>0?C.red:C.grn,fontWeight:700}}>
+            {weekDiff>0?`↑ ${fmt(Math.abs(Math.round(weekDiff)))} más que el promedio`:`↓ ${fmt(Math.abs(Math.round(weekDiff)))} menos que el promedio 🎉`}
+          </div>
         </div>
+
+        {/* Multiple goals */}
+        <div style={{...S.row,marginTop:18,marginBottom:10}}>
+          <span style={{...S.sec,margin:0}}>🎯 Metas de ahorro</span>
+          <button onClick={()=>{setEditGoalItem(null);setGoalF({target:'',deadline:'',label:'',color:'#34D399',icon:'🎯'});setModal('goalitem')}}
+            style={{background:'rgba(52,211,153,.12)',border:'1px solid rgba(52,211,153,.25)',borderRadius:8,color:C.grn,padding:'4px 12px',fontSize:12,cursor:'pointer',fontWeight:700}}>+ Nueva</button>
+        </div>
+
+        {goals.length===0?(
+          <div style={{...S.card(false),textAlign:'center',padding:'30px',color:C.mut,fontSize:13}}>
+            No tienes metas aún<br/>
+            <span style={{fontSize:11,marginTop:4,display:'block'}}>Toca "+ Nueva" para crear una</span>
+          </div>
+        ):goals.map(g=>{
+          const pct=g.target>0?Math.min(100,((g.saved||0)/g.target)*100):0
+          const dl=g.deadline?Math.ceil((new Date(g.deadline)-NOW)/86400000):null
+          const remaining=g.target-(g.saved||0)
+          return(
+            <div key={g.id} style={{...S.card(false),borderLeft:`3px solid ${g.color||C.grn}`}}>
+              <div style={{...S.row,marginBottom:10}}>
+                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                  <div style={{width:42,height:42,borderRadius:12,background:`${g.color||C.grn}20`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>{g.icon||'🎯'}</div>
+                  <div>
+                    <div style={{fontSize:15,fontWeight:800}}>{g.label}</div>
+                    <div style={{fontSize:11,color:C.mut}}>{dl!==null?dl>0?`${dl} días restantes`:'¡Cumplida! 🎉':'Sin fecha límite'}</div>
+                  </div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontSize:16,fontWeight:900,color:g.color||C.grn}}>{fmt(g.saved||0)}</div>
+                  <div style={{fontSize:11,color:C.mut}}>de {fmt(g.target)}</div>
+                </div>
+              </div>
+              <div style={S.pbar}>
+                <div style={{height:'100%',borderRadius:3,width:`${pct}%`,background:`linear-gradient(90deg,${g.color||C.grn},${g.color||C.grn}88)`,transition:'width .5s'}}/>
+              </div>
+              <div style={{...S.row,marginTop:4,fontSize:10,color:C.mut,marginBottom:10}}>
+                <span>{pct.toFixed(0)}% alcanzado</span>
+                <span>{remaining>0?`Faltan ${fmt(remaining)}`:'¡Meta cumplida! 🎉'}</span>
+              </div>
+              {addGoalId===g.id?(
+                <div style={{display:'flex',gap:8}}>
+                  <input style={{...S.inp,marginBottom:0,flex:1}} type="number" placeholder="Monto a abonar" value={addAmt} onChange={e=>setAddAmt(e.target.value)} autoFocus/>
+                  <button onClick={()=>{addToGoal(g.id,addAmt,savCat?.id);setAddGoalId(null);setAddAmt('')}} style={{background:C.grn,border:'none',borderRadius:10,color:'#fff',padding:'0 16px',fontWeight:700,cursor:'pointer',fontSize:14}}>✓</button>
+                  <button onClick={()=>{setAddGoalId(null);setAddAmt('')}} style={{background:'rgba(255,255,255,.06)',border:`1px solid ${C.bord}`,borderRadius:10,color:C.mut,padding:'0 12px',cursor:'pointer'}}>✕</button>
+                </div>
+              ):(
+                <div style={{display:'flex',gap:8}}>
+                  <button onClick={()=>setAddGoalId(g.id)} style={{flex:1,background:`rgba(52,211,153,.12)`,border:`1px solid rgba(52,211,153,.25)`,borderRadius:9,padding:'7px',fontSize:12,color:C.grn,cursor:'pointer',fontWeight:700}}>💰 Abonar</button>
+                  <button onClick={()=>{setEditGoalItem(g);setGoalF({label:g.label,target:String(g.target),deadline:g.deadline||'',color:g.color||'#34D399',icon:g.icon||'🎯'});setModal('goalitem')}} style={{background:'rgba(255,255,255,.06)',border:`1px solid ${C.bord}`,borderRadius:9,padding:'7px 12px',fontSize:13,color:C.mut,cursor:'pointer'}}>✏️</button>
+                  <button onClick={()=>deleteGoalItem(g.id)} style={{background:'rgba(248,113,113,.08)',border:'1px solid rgba(248,113,113,.2)',borderRadius:9,padding:'7px 12px',fontSize:13,color:C.red,cursor:'pointer'}}>✕</button>
+                </div>
+              )}
+            </div>
+          )
+        })}
+
         {projection&&(
           <div style={{...S.card(false),background:'rgba(251,191,36,.05)',border:'1px solid rgba(251,191,36,.2)',marginTop:4}}>
-            <div style={{fontSize:12,color:C.amb,fontWeight:800,marginBottom:8}}>📈 Proyección de ahorro</div>
+            <div style={{fontSize:12,color:C.amb,fontWeight:800,marginBottom:8}}>📈 Proyección general</div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
               <div style={{textAlign:'center',background:'rgba(255,255,255,.03)',borderRadius:10,padding:'10px'}}>
                 <div style={{fontSize:10,color:C.mut,marginBottom:4}}>Promedio mensual</div>
                 <div style={{fontSize:18,fontWeight:900,color:C.amb}}>{fmt(projection.avg)}</div>
               </div>
               <div style={{textAlign:'center',background:'rgba(255,255,255,.03)',borderRadius:10,padding:'10px'}}>
-                <div style={{fontSize:10,color:C.mut,marginBottom:4}}>Meta en</div>
-                <div style={{fontSize:18,fontWeight:900,color:C.amb}}>{projection.months} meses</div>
+                <div style={{fontSize:10,color:C.mut,marginBottom:4}}>Total ahorrado</div>
+                <div style={{fontSize:18,fontWeight:900,color:C.grn}}>{fmt(allSaved)}</div>
               </div>
-            </div>
-            <div style={{marginTop:10,fontSize:12,color:C.mut,textAlign:'center'}}>
-              Alcanzas la meta en <b style={{color:C.amb}}>{projection.projDate.toLocaleDateString('es-MX',{month:'long',year:'numeric'})}</b>
             </div>
           </div>
         )}
-        <div style={S.sec}>Este mes</div>
-        <div style={{...S.card(false),...S.row}}>
-          <div><div style={{fontSize:12,color:C.mut}}>{MNF[new Date(selMon+'-01').getMonth()]}</div><div style={{fontSize:22,fontWeight:900,color:C.grn}}>{fmt(monSaved)}</div></div>
-          <div style={{textAlign:'right'}}><div style={{fontSize:11,color:C.mut}}>Del ingreso</div><div style={{fontSize:20,fontWeight:900,color:C.acc}}>{totalInc>0?((monSaved/totalInc)*100).toFixed(1):0}%</div></div>
-        </div>
+
         <div style={{...S.card(false),padding:'16px',marginTop:4}}>
           <div style={{fontSize:12,color:C.mut,marginBottom:10}}>Ahorros últimos 6 meses</div>
           <Spark data={last6.map(m=>m.savings)} color={C.grn}/>
@@ -796,6 +891,34 @@ function FinanceApp({user}){
       </nav>
 
       {/* MODALS */}
+      {modal==='goalitem'&&(
+        <div style={S.overlay} onClick={e=>e.target===e.currentTarget&&(setModal(null),setEditGoalItem(null))}>
+          <div style={S.sheet}>
+            <div style={S.shT}>{editGoalItem?'✏️ Editar meta':'🎯 Nueva meta de ahorro'}</div>
+            <input style={S.inp} type="text" placeholder="Nombre (Viaje, Casa, Emergencias...)" value={goalF.label} onChange={e=>setGoalF(p=>({...p,label:e.target.value}))}/>
+            <input style={S.inp} type="number" placeholder="Monto objetivo $" value={goalF.target} onChange={e=>setGoalF(p=>({...p,target:e.target.value}))}/>
+            <label style={S.lbl}>Fecha límite (opcional)</label>
+            <input style={S.inp} type="date" value={goalF.deadline||''} onChange={e=>setGoalF(p=>({...p,deadline:e.target.value}))}/>
+            <label style={S.lbl}>Ícono</label>
+            <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:12,maxHeight:100,overflowY:'auto'}}>
+              {['🎯','✈️','🏠','🚗','💍','🎓','🏖️','💊','📱','💻','🐶','👶','🌍','🎮','💰','🏋️'].map(ic=>(
+                <button key={ic} onClick={()=>setGoalF(p=>({...p,icon:ic}))} style={{width:38,height:38,borderRadius:9,border:`2px solid ${goalF.icon===ic?C.grn:'transparent'}`,background:goalF.icon===ic?'rgba(52,211,153,.2)':'rgba(255,255,255,.05)',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{ic}</button>
+              ))}
+            </div>
+            <label style={S.lbl}>Color</label>
+            <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:14}}>
+              {['#34D399','#818CF8','#F97316','#EC4899','#38BDF8','#FBBF24','#F87171','#10B981'].map(col=>(
+                <button key={col} onClick={()=>setGoalF(p=>({...p,color:col}))} style={{width:30,height:30,borderRadius:'50%',background:col,border:`3px solid ${goalF.color===col?'white':'transparent'}`,cursor:'pointer'}}/>
+              ))}
+            </div>
+            <button style={S.btn1(`${C.grn},#10B981`)} onClick={saveGoalItem}>{editGoalItem?'Guardar cambios':'Crear meta'}</button>
+            {editGoalItem&&(
+              <button style={{...S.btn2,color:C.red,borderColor:'rgba(248,113,113,.3)'}} onClick={()=>{deleteGoalItem(editGoalItem.id);setModal(null);setEditGoalItem(null)}}>🗑️ Eliminar meta</button>
+            )}
+            <button style={S.btn2} onClick={()=>{setModal(null);setEditGoalItem(null)}}>Cancelar</button>
+          </div>
+        </div>
+      )}
       {modal==='expense'&&(
         <div style={S.overlay} onClick={e=>e.target===e.currentTarget&&(setModal(null),setEditExp(null))}>
           <div style={S.sheet}>
