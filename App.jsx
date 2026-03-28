@@ -370,11 +370,26 @@ function FinanceApp({user}){
 
   const registerPayment=async()=>{
     if(!payF.amount||+payF.amount<=0){notify('Monto inválido','err');return}
+    if(registerPayment._saving) return; registerPayment._saving=true
     const amount=+payF.amount
     const newBal=Math.max(0,payDebt.balance-amount)
+    const mk2=payF.date.slice(0,7)
+    // 1. Update debt balance
     await db.updateDebt(payDebt.id,{...payDebt,balance:newBal})
+    // 2. Save payment record
     const payRow=await db.insertDebtPayment(user.id,payDebt.id,{...payF,amount})
+    // 3. Register as expense in movements so it shows in saldo
+    const debtCat=cats.find(c=>c.label==='Deudas')||cats.find(c=>c.label==='Extra')||cats[cats.length-1]
+    const expRow=await db.insertExpense(user.id,{
+      category:debtCat?.id||cats[0]?.id,
+      amount,
+      description:`Pago deuda: ${payDebt.name}`,
+      date:payF.date
+    })
+    // 4. Update local state
     setDebts(p=>p.map(d=>d.id!==payDebt.id?d:{...d,balance:newBal,payments:[...(d.payments||[]),(payRow?{id:payRow.id,date:payF.date,amount,note:payF.note}:{})]}))
+    if(expRow) setExpenses(p=>({...p,[mk2]:[...(p[mk2]||[]),{id:expRow.id,category:debtCat?.id||cats[0]?.id,amount,description:`Pago deuda: ${payDebt.name}`,date:payF.date}]}))
+    registerPayment._saving=false
     setPayF({amount:'',date:todayStr,note:''});setPayDebt(null);setModal(null)
     notify('Pago registrado ✓')
   }
