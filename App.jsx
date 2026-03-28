@@ -125,6 +125,8 @@ function FinanceApp({user}){
   const [catF,  setCatF]  = useState(blankCat)
   const [tmpBud,setTmpBud]= useState('')
   const [tmpSal,setTmpSal]= useState('')
+  const [profName, setProfName] = useState(()=>{ try{return JSON.parse(localStorage.getItem('fn4_profile')||'{}').name||''}catch{return ''} })
+  const [profAvatar, setProfAvatar] = useState(()=>{ try{return JSON.parse(localStorage.getItem('fn4_profile')||'{}').avatar||''}catch{return ''} })
 
   const notify=(msg,type='ok')=>{ setNotif({msg,type}); setTimeout(()=>setNotif(null),3000) }
 
@@ -1169,44 +1171,37 @@ function FinanceApp({user}){
         )
       })()}
       {/* PROFILE MODAL */}
-      {modal==='profile'&&(()=>{
-        const [nm,setNm]=React.useState(profile.name||'')
-        const [av,setAv]=React.useState(profile.avatar||'')
-        const handleImg=e=>{
-          const f=e.target.files[0]; if(!f) return
-          const r=new FileReader(); r.onload=ev=>setAv(ev.target.result); r.readAsDataURL(f)
-        }
-        return(
-          <div style={S.overlay} onClick={e=>e.target===e.currentTarget&&setModal(null)}>
-            <div style={S.sheet}>
-              <div style={S.shT}>👤 Mi perfil</div>
-              {/* Avatar */}
-              <div style={{textAlign:'center',marginBottom:20}}>
-                <div style={{width:80,height:80,borderRadius:'50%',background:av?'transparent':`linear-gradient(135deg,${C.acc},${C.grn})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:av?0:32,margin:'0 auto 12px',overflow:'hidden',border:`3px solid ${C.acc}44`}}>
-                  {av?<img src={av} style={{width:'100%',height:'100%',objectFit:'cover'}} alt="perfil"/>:'👤'}
-                </div>
-                <label style={{background:`rgba(129,140,248,.15)`,border:`1px solid rgba(129,140,248,.3)`,borderRadius:10,color:C.acc,padding:'7px 16px',fontSize:13,cursor:'pointer',fontWeight:700,display:'inline-block'}}>
-                  📷 Cambiar foto
-                  <input type="file" accept="image/*" style={{display:'none'}} onChange={handleImg}/>
-                </label>
-                {av&&<button onClick={()=>setAv('')} style={{background:'none',border:'none',color:C.red,cursor:'pointer',fontSize:12,marginLeft:12}}>Quitar foto</button>}
+      {modal==='profile'&&(
+        <div style={S.overlay} onClick={e=>e.target===e.currentTarget&&setModal(null)}>
+          <div style={S.sheet}>
+            <div style={S.shT}>👤 Mi perfil</div>
+            <div style={{textAlign:'center',marginBottom:20}}>
+              <div style={{width:80,height:80,borderRadius:'50%',background:profAvatar?'transparent':`linear-gradient(135deg,${C.acc},${C.grn})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:profAvatar?0:32,margin:'0 auto 12px',overflow:'hidden',border:`3px solid ${C.acc}44`}}>
+                {profAvatar?<img src={profAvatar} style={{width:'100%',height:'100%',objectFit:'cover'}} alt="perfil"/>:'👤'}
               </div>
-              <label style={S.lbl}>Tu nombre</label>
-              <input style={S.inp} type="text" placeholder="¿Cómo te llamas?" value={nm} onChange={e=>setNm(e.target.value)}/>
-              {/* Dark mode toggle inside profile */}
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderTop:`1px solid ${C.bord}`,marginBottom:12}}>
-                <span style={{fontSize:14,fontWeight:600}}>{darkMode?'🌙 Modo oscuro':'☀️ Modo claro'}</span>
-                <button onClick={toggleDark} style={{width:52,height:28,borderRadius:14,background:darkMode?C.acc:'rgba(0,0,0,.12)',border:'none',cursor:'pointer',position:'relative',transition:'background .3s'}}>
-                  <div style={{width:22,height:22,borderRadius:'50%',background:'white',position:'absolute',top:3,left:darkMode?27:3,transition:'left .3s',boxShadow:'0 1px 4px rgba(0,0,0,.3)'}}/>
-                </button>
-              </div>
-              <button style={S.btn1(`${C.acc},#6366F1`)} onClick={()=>{saveProfile({name:nm,avatar:av});setModal(null);notify('Perfil guardado ✓')}}>Guardar</button>
-              <button style={{...S.btn2,marginTop:8,color:C.red,borderColor:'rgba(248,113,113,.3)'}} onClick={()=>{ if(confirm('¿Cerrar sesión?')) supabase.auth.signOut() }}>↩ Cerrar sesión</button>
-              <button style={S.btn2} onClick={()=>setModal(null)}>Cancelar</button>
+              <label style={{background:`rgba(129,140,248,.15)`,border:`1px solid rgba(129,140,248,.3)`,borderRadius:10,color:C.acc,padding:'7px 16px',fontSize:13,cursor:'pointer',fontWeight:700,display:'inline-block'}}>
+                📷 Cambiar foto
+                <input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{
+                  const f=e.target.files[0]; if(!f) return
+                  const r=new FileReader(); r.onload=ev=>setProfAvatar(ev.target.result); r.readAsDataURL(f)
+                }}/>
+              </label>
+              {profAvatar&&<button onClick={()=>setProfAvatar('')} style={{background:'none',border:'none',color:C.red,cursor:'pointer',fontSize:12,marginLeft:12}}>Quitar</button>}
             </div>
+            <label style={S.lbl}>Tu nombre</label>
+            <input style={S.inp} type="text" placeholder="¿Cómo te llamas?" value={profName} onChange={e=>setProfName(e.target.value)}/>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderTop:`1px solid ${C.bord}`,marginBottom:12}}>
+              <span style={{fontSize:14,fontWeight:600}}>{darkMode?'🌙 Modo oscuro':'☀️ Modo claro'}</span>
+              <button onClick={toggleDark} style={{width:52,height:28,borderRadius:14,background:darkMode?C.acc:'rgba(0,0,0,.15)',border:'none',cursor:'pointer',position:'relative',transition:'background .3s'}}>
+                <div style={{width:22,height:22,borderRadius:'50%',background:'white',position:'absolute',top:3,left:darkMode?27:3,transition:'left .3s',boxShadow:'0 1px 4px rgba(0,0,0,.3)'}}/>
+              </button>
+            </div>
+            <button style={S.btn1(`${C.acc},#6366F1`)} onClick={()=>{saveProfile({name:profName,avatar:profAvatar});setModal(null);notify('Perfil guardado ✓')}}>Guardar</button>
+            <button style={{...S.btn2,marginTop:8,color:C.red,borderColor:'rgba(248,113,113,.3)'}} onClick={()=>supabase.auth.signOut()}>↩ Cerrar sesión</button>
+            <button style={S.btn2} onClick={()=>setModal(null)}>Cancelar</button>
           </div>
-        )
-      })()}
+        </div>
+      )}
     </div>
   )
 }
