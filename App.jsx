@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+mport React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from './supabase'
 import Auth from './Auth'
 import * as db from './db'
@@ -150,7 +150,7 @@ function FinanceApp({user}){
   const [editCat,    setEditCat]    = useState(null)
 
   const blankExp  = {category:cats[0]?.id||'comidas', amount:'', description:'', date:todayStr}
-  const blankDebt = {name:'', type:'tarjeta', balance:'', originalAmount:'', minPayment:'', interestRate:'', dueDay:'', color:'#F87171'}
+  const blankDebt = {name:'', type:'tarjeta', balance:'', originalAmount:'', minPayment:'', interestRate:'', dueDay:'', dueMonth:'', color:'#F87171'}
   const blankCat  = {label:'', icon:'🛍️', color:'#EC4899'}
 
   const [expF,  setExpF]  = useState(blankExp)
@@ -393,7 +393,7 @@ function FinanceApp({user}){
 
   const saveDebt=async()=>{
     if(!debtF.name||!debtF.balance){notify('Completa nombre y saldo','err');return}
-    const data={...debtF,balance:+debtF.balance,originalAmount:+debtF.originalAmount||+debtF.balance,minPayment:+debtF.minPayment||0,interestRate:+debtF.interestRate||0,dueDay:+debtF.dueDay||1}
+    const data={...debtF,balance:+debtF.balance,originalAmount:+debtF.originalAmount||+debtF.balance,minPayment:+debtF.minPayment||0,interestRate:+debtF.interestRate||0,dueDay:+debtF.dueDay||1,dueMonth:+debtF.dueMonth||0}
     if(editDebt){
       await db.updateDebt(editDebt.id,data)
       setDebts(p=>p.map(d=>d.id===editDebt.id?{...d,...data}:d))
@@ -492,13 +492,15 @@ function FinanceApp({user}){
   // ── Debt due notifications ──
   const debtsDueSoon = debts.filter(d=>{
     if(d.balance<=0||!d.dueDay) return false
-    const today=NOW.getDate()
-    const due=d.dueDay
-    return due>=today && due<=today+3
+    const today=NOW.getDate(), month=NOW.getMonth()+1
+    const sameMonth=!d.dueMonth||d.dueMonth===month
+    return sameMonth && d.dueDay>=today && d.dueDay<=today+3
   })
   const debtsOverdue = debts.filter(d=>{
     if(d.balance<=0||!d.dueDay) return false
-    return d.dueDay < NOW.getDate()
+    const today=NOW.getDate(), month=NOW.getMonth()+1
+    const sameMonth=!d.dueMonth||d.dueMonth===month
+    return sameMonth && d.dueDay < today
   })
 
   if(!dataReady) return(
@@ -514,10 +516,21 @@ function FinanceApp({user}){
   /* ════ HOME ════ */
   const Home=()=>{
     const totalBudget=Object.values(budgets).reduce((s,v)=>s+v,0)
+    const debtBannerEl=(debtsDueSoon.length>0||debtsOverdue.length>0)&&selMon===mk(NOW)?(
+      <div className="slide-down" style={{background:debtsOverdue.length>0?'rgba(248,113,113,.08)':'rgba(251,191,36,.07)',border:`1px solid ${debtsOverdue.length>0?'rgba(248,113,113,.2)':'rgba(251,191,36,.18)'}`,borderRadius:14,padding:'12px 14px',display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+        <span style={{fontSize:20}}>{debtsOverdue.length>0?'🚨':'⏰'}</span>
+        <div style={{flex:1}}>
+          {debtsOverdue.length>0&&<div style={{fontSize:12,color:C.red,fontWeight:700,marginBottom:2}}>Vencidas: {debtsOverdue.map(d=>d.name).join(', ')}</div>}
+          {debtsDueSoon.length>0&&<div style={{fontSize:12,color:C.amb,fontWeight:700}}>Vencen pronto: {debtsDueSoon.map(d=>`${d.name} día ${d.dueDay}`).join(' · ')}</div>}
+        </div>
+        <button onClick={()=>setView('debts')} style={{background:'none',border:'none',color:debtsOverdue.length>0?C.red:C.amb,fontSize:13,cursor:'pointer',fontWeight:800,flexShrink:0}}>Ver →</button>
+      </div>
+    ):null
     const globPct=totalBudget>0?(totalSpent/totalBudget)*100:(totalInc>0?(totalSpent/totalInc)*100:0)
     const over80=cats.filter(c=>{const b=catBudget(c.id);return b>0&&catSpent(c.id)/b>=.8})
     return(
       <div>
+        {debtBannerEl}
         <div style={{...S.card(false),background:'linear-gradient(135deg,rgba(129,140,248,.08),rgba(52,211,153,.05))',border:'1px solid rgba(129,140,248,.2)',...S.row}}>
           <div>
             <div style={{fontSize:11,color:C.mut,marginBottom:4}}>Salario — {MNF[new Date(selMon+'-01').getMonth()]}</div>
@@ -667,7 +680,7 @@ function FinanceApp({user}){
                       <div style={{width:42,height:42,borderRadius:12,background:`${d.color||C.red}20`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>{dt?.icon||'📄'}</div>
                       <div>
                         <div style={{fontSize:15,fontWeight:800}}>{d.name}</div>
-                        <div style={{fontSize:11,color:C.mut}}>{dt?.label}{d.dueDay?` · Vence día ${d.dueDay}`:''}</div>
+                        <div style={{fontSize:11,color:C.mut}}>{dt?.label}{d.dueDay?` · Vence ${d.dueMonth?MN[d.dueMonth-1]+' ':''} día ${d.dueDay}`:''}</div>
                       </div>
                     </div>
                     <div style={{textAlign:'right'}}>
@@ -712,7 +725,7 @@ function FinanceApp({user}){
     )
   }
 
-  const startEditDebt=d=>{setEditDebt(d);setDebtF({name:d.name,type:d.type,balance:String(d.balance),originalAmount:String(d.originalAmount||d.balance),minPayment:String(d.minPayment||''),interestRate:String(d.interestRate||''),dueDay:String(d.dueDay||''),color:d.color||'#F87171'});setModal('debt')}
+  const startEditDebt=d=>{setEditDebt(d);setDebtF({name:d.name,type:d.type,balance:String(d.balance),originalAmount:String(d.originalAmount||d.balance),minPayment:String(d.minPayment||''),interestRate:String(d.interestRate||''),dueDay:String(d.dueDay||''),dueMonth:String(d.dueMonth||''),color:d.color||'#F87171'});setModal('debt')}
 
   /* ════ TRANSACTIONS ════ */
   const Transactions=()=>{
@@ -954,17 +967,7 @@ function FinanceApp({user}){
       </div>
 
       <div style={S.body}>
-        {/* Debt due soon banner - inside body */}
-        {(debtsDueSoon.length>0||debtsOverdue.length>0)&&selMon===mk(NOW)&&view==='home'&&(
-          <div className="slide-down" style={{background:debtsOverdue.length>0?'rgba(248,113,113,.08)':'rgba(251,191,36,.07)',border:`1px solid ${debtsOverdue.length>0?'rgba(248,113,113,.2)':'rgba(251,191,36,.18)'}`,borderRadius:14,padding:'12px 14px',display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
-            <span style={{fontSize:20}}>{debtsOverdue.length>0?'🚨':'⏰'}</span>
-            <div style={{flex:1}}>
-              {debtsOverdue.length>0&&<div style={{fontSize:12,color:C.red,fontWeight:700,marginBottom:2}}>Vencidas este mes: {debtsOverdue.map(d=>d.name).join(', ')}</div>}
-              {debtsDueSoon.length>0&&<div style={{fontSize:12,color:C.amb,fontWeight:700}}>Vencen pronto: {debtsDueSoon.map(d=>`${d.name} día ${d.dueDay}`).join(' · ')}</div>}
-            </div>
-            <button onClick={()=>setView('debts')} style={{background:'none',border:'none',color:debtsOverdue.length>0?C.red:C.amb,fontSize:13,cursor:'pointer',fontWeight:800,flexShrink:0}}>Ver →</button>
-          </div>
-        )}
+
         <div key={view} className="fade-in">
           {view==='home'   &&<Home/>}
           {view==='moves'  &&<Transactions/>}
@@ -1149,8 +1152,24 @@ function FinanceApp({user}){
               <div><label style={S.lbl}>Tasa anual %</label><input style={{...S.inp,marginBottom:0}} type="number" placeholder="0" value={debtF.interestRate} onChange={e=>setDebtF(p=>({...p,interestRate:e.target.value}))}/></div>
             </div>
             <div style={{height:10}}/>
-            <label style={S.lbl}>Día de vencimiento</label>
-            <input style={S.inp} type="number" min="1" max="31" placeholder="Ej: 15" value={debtF.dueDay} onChange={e=>setDebtF(p=>({...p,dueDay:e.target.value}))}/>
+            <label style={S.lbl}>Fecha de vencimiento</label>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              <div>
+                <label style={{...S.lbl,marginBottom:4}}>Día</label>
+                <select style={{...S.sel,marginBottom:0}} value={debtF.dueDay||''} onChange={e=>setDebtF(p=>({...p,dueDay:e.target.value}))}>
+                  <option value="">Día</option>
+                  {Array.from({length:31},(_,i)=><option key={i+1} value={i+1}>{i+1}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{...S.lbl,marginBottom:4}}>Mes</label>
+                <select style={{...S.sel,marginBottom:0}} value={debtF.dueMonth||''} onChange={e=>setDebtF(p=>({...p,dueMonth:e.target.value}))}>
+                  <option value="">Mes</option>
+                  {MN.map((m,i)=><option key={i} value={i+1}>{m}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{height:10}}/>
             <label style={S.lbl}>Color</label>
             <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:14}}>
               {CAT_COLORS.map(col=>(
