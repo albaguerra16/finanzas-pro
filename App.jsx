@@ -690,7 +690,7 @@ function FinanceApp({user}){
                       <div style={{width:42,height:42,borderRadius:12,background:`${d.color||C.red}20`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>{dt?.icon||'📄'}</div>
                       <div>
                         <div style={{fontSize:15,fontWeight:800}}>{d.name}</div>
-                        <div style={{fontSize:11,color:C.mut}}>{dt?.label}{d.dueDay?` · Vence ${d.dueMonth?MN[d.dueMonth-1]+' ':''} día ${d.dueDay}`:''}</div>
+                        <div style={{fontSize:11,color:C.mut}}>{dt?.label}{d.dueDay?` · Vence${d.dueMonth?' '+MN[d.dueMonth-1]:''} día ${d.dueDay}`:''}</div>
                       </div>
                     </div>
                     <div style={{textAlign:'right'}}>
