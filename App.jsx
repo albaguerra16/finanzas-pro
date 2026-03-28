@@ -62,9 +62,14 @@ const ANIM_CSS = `
   50%      { box-shadow: 0 0 0 8px rgba(129,140,248,0.15); }
 }
 @keyframes shimmer {
-  from { background-position: -200% center; }
-  to   { background-position: 200% center; }
+  from { background-position: -300% center; }
+  to   { background-position: 300% center; }
 }
+@keyframes glow {
+  0%,100% { box-shadow: 0 0 20px rgba(155,143,247,0); }
+  50%      { box-shadow: 0 0 20px rgba(155,143,247,0.3); }
+}
+.card-hover:active { transform: scale(0.98); transition: transform 0.1s; }
 .slide-up   { animation: slideUp .35s cubic-bezier(.22,1,.36,1) both; }
 .fade-in    { animation: fadeIn .3s ease both; }
 .pop-in     { animation: popIn .4s cubic-bezier(.22,1,.36,1) both; }
@@ -455,33 +460,33 @@ function FinanceApp({user}){
 
   /* ════════ STYLES ════════ */
   const C=darkMode
-    ? {bg:'#070712',surf:'#0F0F1E',bord:'rgba(255,255,255,0.07)',acc:'#818CF8',grn:'#34D399',red:'#F87171',amb:'#FBBF24',txt:'#E8E8F8',mut:'rgba(255,255,255,0.38)'}
-    : {bg:'#F0F2F8',surf:'#FFFFFF',bord:'rgba(0,0,0,0.08)',acc:'#6366F1',grn:'#059669',red:'#DC2626',amb:'#D97706',txt:'#1E1E2E',mut:'rgba(0,0,0,0.4)'}
+    ? {bg:'#05050F',surf:'#0D0D1F',bord:'rgba(255,255,255,0.06)',acc:'#9B8FF7',grn:'#2DD4BF',red:'#FB7185',amb:'#FCD34D',txt:'#F0F0FF',mut:'rgba(255,255,255,0.35)',acc2:'#6EE7F7'}
+    : {bg:'#F4F6FF',surf:'#FFFFFF',bord:'rgba(99,102,241,0.1)',acc:'#6366F1',grn:'#059669',red:'#DC2626',amb:'#D97706',txt:'#1E1E2E',mut:'rgba(0,0,0,0.4)',acc2:'#06B6D4'}
   const S={
-    app:   {minHeight:'100vh',background:C.bg,color:C.txt,fontFamily:"'Plus Jakarta Sans',sans-serif",paddingBottom:88,transition:'background .3s,color .3s'},
-    hdr:   {background:C.surf,borderBottom:`1px solid ${C.bord}`,padding:'18px 16px 0',position:'sticky',top:0,zIndex:100},
+    app:   {minHeight:'100vh',background:darkMode?`radial-gradient(ellipse at 20% 0%,rgba(155,143,247,0.08) 0%,${C.bg} 50%),radial-gradient(ellipse at 80% 100%,rgba(46,212,191,0.06) 0%,transparent 50%)`:C.bg,color:C.txt,fontFamily:"'Plus Jakarta Sans',sans-serif",paddingBottom:88,transition:'background .3s,color .3s'},
+    hdr:   {background:darkMode?'rgba(5,5,15,0.85)':'rgba(255,255,255,0.9)',backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',borderBottom:`1px solid ${C.bord}`,padding:'18px 16px 0',position:'sticky',top:0,zIndex:100},
     hTop:  {display:'flex',justifyContent:'space-between',alignItems:'center',maxWidth:520,margin:'0 auto 12px'},
-    logo:  {fontSize:18,fontWeight:900,background:`linear-gradient(90deg,${C.acc},${C.grn},${C.acc})`,backgroundSize:'200% auto',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',animation:'shimmer 4s linear infinite'},
+    logo:  {fontSize:19,fontWeight:900,letterSpacing:'-0.3px',background:`linear-gradient(90deg,${C.acc},${C.acc2},${C.grn},${C.acc})`,backgroundSize:'300% auto',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',animation:'shimmer 5s linear infinite'},
     msel:  {background:'rgba(255,255,255,0.07)',border:`1px solid ${C.bord}`,borderRadius:9,color:C.txt,padding:'5px 10px',fontSize:12,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif"},
     statsRow:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,maxWidth:520,margin:'0 auto 14px'},
-    sCard: c=>({background:`rgba(${c},.09)`,border:`1px solid rgba(${c},.2)`,borderRadius:12,padding:'11px 10px',textAlign:'center'}),
+    sCard: c=>({background:`linear-gradient(135deg,rgba(${c},.12),rgba(${c},.06))`,border:`1px solid rgba(${c},.18)`,borderRadius:14,padding:'12px 10px',textAlign:'center',boxShadow:`0 4px 12px rgba(${c},.08)`}),
     sVal:  c=>({fontSize:16,fontWeight:900,color:`rgb(${c})`,marginBottom:1}),
     body:  {maxWidth:520,margin:'0 auto',padding:'16px 14px'},
-    sec:   {fontSize:10,fontWeight:800,color:C.mut,textTransform:'uppercase',letterSpacing:'1.2px',margin:'18px 0 10px'},
-    card:  hi=>({background:hi?'rgba(248,113,113,.06)':C.surf,border:`1px solid ${hi?'rgba(248,113,113,.2)':C.bord}`,borderRadius:14,padding:'13px 15px',marginBottom:8}),
-    pbar:  {height:5,borderRadius:3,background:'rgba(255,255,255,.07)',overflow:'hidden'},
+    sec:   {fontSize:10,fontWeight:800,color:C.mut,textTransform:'uppercase',letterSpacing:'1.5px',margin:'20px 0 10px'},
+    card:  hi=>({background:hi?'rgba(251,113,133,.06)':darkMode?'rgba(255,255,255,0.03)':C.surf,border:`1px solid ${hi?'rgba(251,113,133,.2)':C.bord}`,borderRadius:16,padding:'14px 16px',marginBottom:8,boxShadow:darkMode?'0 1px 0 rgba(255,255,255,0.04)':'0 1px 3px rgba(0,0,0,0.06)'}),
+    pbar:  {height:6,borderRadius:99,background:darkMode?'rgba(255,255,255,.06)':'rgba(0,0,0,.06)',overflow:'hidden'},
     pfill: (p,c,o)=>({height:'100%',borderRadius:3,width:`${Math.min(p,100)}%`,background:o?`linear-gradient(90deg,${C.red},#dc2626)`:`linear-gradient(90deg,${c},${c}88)`,transition:'width .5s'}),
-    fab:   {position:'fixed',bottom:94,right:18,width:52,height:52,borderRadius:'50%',background:`linear-gradient(135deg,${C.acc},#6366F1)`,border:'none',color:'#fff',fontSize:24,cursor:'pointer',boxShadow:`0 4px 20px rgba(129,140,248,.45)`,zIndex:200,display:'flex',alignItems:'center',justifyContent:'center'},
-    bnav:  {position:'fixed',bottom:0,left:0,right:0,background:darkMode?'rgba(7,7,18,.96)':'rgba(255,255,255,.96)',backdropFilter:'blur(20px)',borderTop:`1px solid ${C.bord}`,display:'flex',padding:'8px 0 16px',zIndex:150},
+    fab:   {position:'fixed',bottom:94,right:18,width:56,height:56,borderRadius:'50%',background:`linear-gradient(135deg,${C.acc},#6366F1)`,border:'none',color:'#fff',fontSize:26,cursor:'pointer',boxShadow:`0 6px 28px rgba(155,143,247,.55),0 2px 8px rgba(0,0,0,.3)`,zIndex:200,display:'flex',alignItems:'center',justifyContent:'center'},
+    bnav:  {position:'fixed',bottom:0,left:0,right:0,background:darkMode?'rgba(5,5,15,0.92)':'rgba(255,255,255,.94)',backdropFilter:'blur(28px)',WebkitBackdropFilter:'blur(28px)',borderTop:`1px solid ${C.bord}`,display:'flex',padding:'8px 0 18px',zIndex:150},
     nbtn:  a=>({flex:1,background:'none',border:'none',color:a?C.acc:C.mut,fontSize:10,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:3,transition:'color .2s'}),
     overlay:{position:'fixed',inset:0,background:'rgba(0,0,0,.8)',backdropFilter:'blur(12px)',zIndex:300,display:'flex',alignItems:'flex-end',justifyContent:'center'},
-    sheet: {background:darkMode?'#11111F':C.surf,border:`1px solid ${C.bord}`,borderRadius:'22px 22px 0 0',padding:'22px 20px 44px',width:'100%',maxWidth:520,maxHeight:'90vh',overflowY:'auto',animation:'slideUp .35s cubic-bezier(.22,1,.36,1) both'},
+    sheet: {background:darkMode?'rgba(10,10,22,0.98)':C.surf,border:`1px solid ${C.bord}`,borderTop:`1px solid rgba(255,255,255,0.08)`,borderRadius:'28px 28px 0 0',padding:'24px 20px 48px',width:'100%',maxWidth:520,maxHeight:'90vh',overflowY:'auto',animation:'slideUp .35s cubic-bezier(.22,1,.36,1) both',boxShadow:'0 -8px 40px rgba(0,0,0,.4)'},
     shT:   {fontSize:18,fontWeight:900,marginBottom:18},
-    inp:   {width:'100%',background:'rgba(255,255,255,.06)',border:`1px solid ${C.bord}`,borderRadius:10,color:C.txt,padding:'11px 13px',fontSize:15,marginBottom:10,boxSizing:'border-box',outline:'none',fontFamily:"'Plus Jakarta Sans',sans-serif"},
-    sel:   {width:'100%',background:'rgba(255,255,255,.06)',border:`1px solid ${C.bord}`,borderRadius:10,color:C.txt,padding:'11px 13px',fontSize:15,marginBottom:10,boxSizing:'border-box',cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif"},
-    btn1:  g=>({width:'100%',background:`linear-gradient(135deg,${g})`,border:'none',borderRadius:12,color:'#fff',padding:'13px',fontSize:15,fontWeight:800,cursor:'pointer',marginTop:4,fontFamily:"'Plus Jakarta Sans',sans-serif"}),
+    inp:   {width:'100%',background:darkMode?'rgba(255,255,255,.05)':'rgba(0,0,0,.03)',border:`1px solid ${C.bord}`,borderRadius:12,color:C.txt,padding:'12px 14px',fontSize:15,marginBottom:10,boxSizing:'border-box',outline:'none',fontFamily:"'Plus Jakarta Sans',sans-serif",transition:'border-color .2s'},
+    sel:   {width:'100%',background:darkMode?'rgba(255,255,255,.05)':'rgba(0,0,0,.03)',border:`1px solid ${C.bord}`,borderRadius:12,color:C.txt,padding:'12px 14px',fontSize:15,marginBottom:10,boxSizing:'border-box',cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif"},
+    btn1:  g=>({width:'100%',background:`linear-gradient(135deg,${g})`,border:'none',borderRadius:14,color:'#fff',padding:'14px',fontSize:15,fontWeight:800,cursor:'pointer',marginTop:4,fontFamily:"'Plus Jakarta Sans',sans-serif",boxShadow:'0 4px 16px rgba(0,0,0,.25)',letterSpacing:'0.2px'}),
     btn2:  {width:'100%',background:'rgba(255,255,255,.05)',border:`1px solid ${C.bord}`,borderRadius:12,color:C.txt,padding:'12px',fontSize:14,fontWeight:600,cursor:'pointer',marginTop:8,fontFamily:"'Plus Jakarta Sans',sans-serif"},
-    notif: t=>({position:'fixed',top:24,left:'50%',transform:'translateX(-50%)',background:t==='err'?C.red:t==='warn'?C.amb:C.grn,color:'#fff',padding:'11px 24px',borderRadius:30,fontSize:14,fontWeight:700,zIndex:500,whiteSpace:'nowrap',boxShadow:'0 6px 24px rgba(0,0,0,.4)',display:'flex',alignItems:'center',gap:8}),
+    notif: t=>({position:'fixed',top:24,left:'50%',transform:'translateX(-50%)',background:t==='err'?`linear-gradient(135deg,${C.red},#f43f5e)`:t==='warn'?`linear-gradient(135deg,${C.amb},#f59e0b)`:`linear-gradient(135deg,${C.grn},#10b981)`,color:'#fff',padding:'11px 26px',borderRadius:30,fontSize:14,fontWeight:700,zIndex:500,whiteSpace:'nowrap',boxShadow:'0 8px 32px rgba(0,0,0,.35)',display:'flex',alignItems:'center',gap:8,backdropFilter:'blur(10px)'}),
     iInp:  {background:'rgba(255,255,255,.08)',border:'1px solid rgba(129,140,248,.4)',borderRadius:8,color:C.txt,padding:'3px 8px',fontSize:13,width:88,textAlign:'right',fontFamily:"'Plus Jakarta Sans',sans-serif"},
     smB:   c=>({background:c,border:'none',borderRadius:7,color:'#fff',padding:'3px 9px',fontSize:12,cursor:'pointer',marginLeft:5,fontWeight:700}),
     srch:  {display:'flex',alignItems:'center',gap:8,background:'rgba(255,255,255,.05)',border:`1px solid ${C.bord}`,borderRadius:12,padding:'10px 14px',marginBottom:14},
@@ -541,7 +546,7 @@ function FinanceApp({user}){
     return(
       <div>
         {debtBannerEl}
-        <div style={{...S.card(false),background:'linear-gradient(135deg,rgba(129,140,248,.08),rgba(52,211,153,.05))',border:'1px solid rgba(129,140,248,.2)',...S.row}}>
+        <div style={{...S.card(false),background:'linear-gradient(135deg,rgba(155,143,247,.12),rgba(45,212,191,.07))',border:'1px solid rgba(155,143,247,.25)',boxShadow:'0 4px 24px rgba(155,143,247,.08)',...S.row}}>
           <div>
             <div style={{fontSize:11,color:C.mut,marginBottom:4}}>Salario — {MNF[new Date(selMon+'-01').getMonth()]}</div>
             <div style={{fontSize:24,fontWeight:900,color:C.acc}}>{salary>0?fmt(salary):'Sin configurar'}</div>
@@ -563,7 +568,7 @@ function FinanceApp({user}){
             <div style={{fontSize:12,color:C.amb}}><b>Cerca del tope:</b> {over80.map(c=>`${c.icon} ${c.label}`).join(', ')}</div>
           </div>
         )}
-        <div style={{...S.card(false),marginBottom:4}}>
+        <div style={{...S.card(false),marginBottom:4,background:darkMode?'linear-gradient(135deg,rgba(155,143,247,.06),rgba(45,212,191,.04))':'linear-gradient(135deg,rgba(99,102,241,.04),rgba(5,150,105,.03))'}}>
           <div style={{...S.row,marginBottom:8}}>
             <span style={{fontSize:13,color:C.mut}}>Presupuesto del mes</span>
             <span style={{fontSize:13,fontWeight:700}}>{fmt(totalSpent)} <span style={{color:C.mut}}>/ {fmt(totalBudget||totalInc)}</span></span>
@@ -684,7 +689,7 @@ function FinanceApp({user}){
               const months=calcPayoffMonths(d.balance,d.minPayment,d.interestRate)
               const pDate=months&&months!==Infinity?new Date(NOW.getFullYear(),NOW.getMonth()+months,1):null
               return(
-                <div key={d.id} className="slide-up" style={{...S.card(false),borderLeft:`3px solid ${d.color||C.red}`,cursor:'pointer',animationDelay:`${active.indexOf(d)*0.07}s`}} onClick={()=>setDetailDebt(d)}>
+                <div key={d.id} className="slide-up" style={{...S.card(false),borderLeft:`3px solid ${d.color||C.red}`,cursor:'pointer',animationDelay:`${active.indexOf(d)*0.07}s`,boxShadow:darkMode?`0 2px 16px ${d.color||C.red}15`:''}} onClick={()=>setDetailDebt(d)}>
                   <div style={{...S.row,marginBottom:10}}>
                     <div style={{display:'flex',alignItems:'center',gap:10}}>
                       <div style={{width:42,height:42,borderRadius:12,background:`${d.color||C.red}20`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>{dt?.icon||'📄'}</div>
@@ -781,7 +786,7 @@ function FinanceApp({user}){
                 return(
                   <div key={item.id} className="slide-up" style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 0',borderBottom:`1px solid ${C.bord}`,animationDelay:`${Math.min(all.indexOf(item)*0.03,0.3)}s`}}>
                     <div style={{display:'flex',alignItems:'center',gap:11}}>
-                      <div style={{width:44,height:44,borderRadius:13,background:isInc?'rgba(52,211,153,.18)':cat?`${cat.color}28`:'rgba(255,255,255,.08)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,border:`1px solid ${isInc?'rgba(52,211,153,.25)':cat?cat.color+'40':'rgba(255,255,255,.1)'}`,flexShrink:0}}>{isInc?'💰':cat?.icon||'📦'}</div>
+                      <div style={{width:46,height:46,borderRadius:14,background:isInc?'rgba(45,212,191,.15)':cat?`${cat.color}22`:'rgba(255,255,255,.06)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:21,border:`1px solid ${isInc?'rgba(45,212,191,.3)':cat?cat.color+'35':'rgba(255,255,255,.08)'}`,flexShrink:0,boxShadow:darkMode?`0 2px 8px ${cat?.color||'rgba(255,255,255'}18)`:''}}>{isInc?'💰':cat?.icon||'📦'}</div>
                       <div><div style={{fontSize:14,fontWeight:600}}>{item.description||item.label||cat?.label}</div><div style={{fontSize:11,color:C.mut}}>{isInc?'Ingreso extra':cat?.label} · {item.date}</div></div>
                     </div>
                     <div style={{display:'flex',alignItems:'center',gap:7}}>
@@ -1000,6 +1005,7 @@ function FinanceApp({user}){
       {modal==='goalitem'&&(
         <div style={S.overlay} onClick={e=>e.target===e.currentTarget&&(setModal(null),setEditGoalItem(null))}>
           <div style={S.sheet}>
+            <div style={{width:36,height:4,borderRadius:99,background:'rgba(255,255,255,.15)',margin:'-8px auto 20px',display:'block'}}/>
             <div style={S.shT}>{editGoalItem?'✏️ Editar meta':'🎯 Nueva meta de ahorro'}</div>
             <input style={S.inp} type="text" placeholder="Nombre (Viaje, Casa, Emergencias...)" value={goalF.label} onChange={e=>setGoalF(p=>({...p,label:e.target.value}))}/>
             <input style={S.inp} type="number" placeholder="Monto objetivo $" value={goalF.target} onChange={e=>setGoalF(p=>({...p,target:e.target.value}))}/>
