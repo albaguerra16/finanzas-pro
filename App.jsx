@@ -227,8 +227,8 @@ function FinanceApp({user}){
     else { score-=25; msgs.push('Sin ahorros este mes 😬') }
 
     // Budget (30pts)
-    const catsWithBudget = cats.filter(c=>catBudget(c.id)>0)
-    const exceeded = catsWithBudget.filter(c=>catSpent(c.id)>catBudget(c.id))
+    const catsWithBudget = cats.filter(c=>(budgets[c.id]??0)>0)
+    const exceeded = catsWithBudget.filter(c=>monExp.filter(e=>e.category===c.id).reduce((s,e)=>s+e.amount,0)>(budgets[c.id]??0))
     if(exceeded.length===0&&catsWithBudget.length>0) msgs.push('Dentro del presupuesto 🎯')
     else if(exceeded.length>0){ score-=exceeded.length*8; msgs.push(`${exceeded.length} categoría${exceeded.length>1?'s':''} excedida${exceeded.length>1?'s':''} ⚠️`) }
     if(catsWithBudget.length===0){ score-=10; msgs.push('Define topes por categoría 📊') }
@@ -1029,8 +1029,10 @@ function FinanceApp({user}){
         const savCatId=cats.find(c=>c.label==='Ahorros')?.id||'ahorros'
         const monSavings=monExp.filter(e=>e.category===savCatId).reduce((s,e)=>s+e.amount,0)
         const savRate=totalInc>0?(monSavings/totalInc)*100:0
-        const catsWithBudget=cats.filter(c=>catBudget(c.id)>0)
-        const exceeded=catsWithBudget.filter(c=>catSpent(c.id)>catBudget(c.id))
+        const cbud=id=>budgets[id]??0
+        const csp=id=>monExp.filter(e=>e.category===id).reduce((s,e)=>s+e.amount,0)
+        const catsWithBudget=cats.filter(c=>cbud(c.id)>0)
+        const exceeded=catsWithBudget.filter(c=>csp(c.id)>cbud(c.id))
         const ratio=totalInc>0?(totalSpent/totalInc)*100:100
         const items=[
           {label:'Tasa de ahorro',val:`${savRate.toFixed(1)}%`,pts:savRate>=20?30:savRate>=10?20:savRate>0?15:5,max:30,color:savRate>=20?C.grn:savRate>=10?C.acc:C.amb},
