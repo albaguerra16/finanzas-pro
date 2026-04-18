@@ -214,6 +214,7 @@ function FinanceApp({user}){
 
   // ── Financial Score ──
   const finScore = useMemo(()=>{
+    try {
     let score = 100
     const msgs = []
     const savCatId = cats.find(c=>c.label==='Ahorros')?.id||'ahorros'
@@ -253,6 +254,7 @@ function FinanceApp({user}){
     const color=score>=80?'#2DD4BF':score>=60?'#9B8FF7':score>=40?'#FCD34D':'#FB7185'
     const label=score>=80?'Excelente 🌟':score>=60?'Bien 👍':score>=40?'Regular ⚡':'Mejorar 💪'
     return {score,grade,color,label,msgs}
+    } catch(e) { return {score:0,grade:'?',color:'#9B8FF7',label:'Cargando...',msgs:[]} }
   },[monExp,cats,budgets,totalInc,totalSpent,debts])
 
   const last6 = useMemo(()=>Array.from({length:6},(_,i)=>{
