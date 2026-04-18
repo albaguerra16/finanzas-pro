@@ -409,7 +409,7 @@ function FinanceApp({user}){
     const totalBudget=Object.values(budgets).reduce((s,v)=>s+v,0)
     const globPct=totalBudget>0?(totalSpent/totalBudget)*100:totalInc>0?(totalSpent/totalInc)*100:0
     const over80=cats.filter(c=>{const b=catBudget(c.id);const sp=catSpent(c.id);return b>0&&sp/b>=.8})
-    const recentAll=[...monExp.map(e=>({...e,isInc:false})),...monInc.map(e=>({...e,isInc:true}))].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,4)
+
     return(
       <div>
         <Hdr grad="linear-gradient(160deg,#4c1d95,#0284c7)" extraRight={
@@ -466,24 +466,41 @@ function FinanceApp({user}){
             </div>
           )}
 
-          {/* Category chips */}
+          {/* Categories full cards */}
           <div style={{...S.row,marginBottom:10}}>
             <div style={S.sec}>Categorías</div>
             <button onClick={()=>{setEditCat(null);setCatF(blankCat);setModal('cat')}} style={{background:'#ede9fe',border:'none',borderRadius:8,color:'#7c3aed',padding:'4px 12px',fontSize:12,cursor:'pointer',fontWeight:700}}>+ Nueva</button>
           </div>
-          <div style={{display:'flex',gap:8,overflowX:'auto',paddingBottom:8,marginBottom:10,scrollbarWidth:'none'}}>
-            {cats.map(cat=>{
-              const sp=catSpent(cat.id),bud=catBudget(cat.id),pct=bud>0?(sp/bud)*100:0,over=bud>0&&sp>bud
-              return(
-                <div key={cat.id} onClick={()=>setSelCat(cat)} style={{flexShrink:0,background:WS,borderRadius:16,padding:'10px 8px',boxShadow:'0 2px 8px rgba(0,0,0,.07)',minWidth:74,textAlign:'center',cursor:'pointer',border:over?'1px solid #fecaca':'1px solid transparent',transition:'transform .15s'}} className="su">
-                  <div style={{fontSize:20,marginBottom:4}}>{cat.icon}</div>
-                  <div style={{fontSize:9,color:'#999',marginBottom:2,fontWeight:600,maxWidth:64,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cat.label}</div>
-                  <div style={{fontSize:11,fontWeight:900,color:over?'#dc2626':cat.color}}>{fmt(sp)}</div>
-                  {bud>0&&<><div style={{height:3,background:'#f0f0f0',borderRadius:99,marginTop:5,overflow:'hidden'}}><div style={{height:'100%',borderRadius:99,width:`${Math.min(pct,100)}%`,background:over?'#ef4444':cat.color}}/></div><div style={{fontSize:8,color:over?'#ef4444':'#bbb',marginTop:3,fontWeight:over?700:400}}>{over?'EXCEDIDO':`${pct.toFixed(0)}%`}</div></>}
+          {cats.map(cat=>{
+            const sp=catSpent(cat.id),bud=catBudget(cat.id),pct=bud>0?(sp/bud)*100:0,over=bud>0&&sp>bud,near=bud>0&&pct>=80&&!over
+            return(
+              <div key={cat.id} className="su" style={{...S.card(over?cat.color:null),cursor:'pointer',background:over?`${cat.color}08`:darkMode?'#0f0f1e':WS}} onClick={()=>setSelCat(cat)}>
+                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:bud>0?8:0}}>
+                  <div style={{width:42,height:42,borderRadius:13,background:`${cat.color}18`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,border:`1px solid ${cat.color}30`,flexShrink:0}}>{cat.icon}</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:14,fontWeight:700}}>{cat.label}</div>
+                    {over&&<div style={{fontSize:11,color:'#dc2626',fontWeight:600}}>+{fmt(sp-bud)} sobre el tope</div>}
+                    {near&&<div style={{fontSize:11,color:'#d97706'}}>⚠️ {pct.toFixed(0)}% del tope</div>}
+                  </div>
+                  <div style={{textAlign:'right'}}>
+                    <div style={{fontSize:15,fontWeight:900,color:over?'#dc2626':near?'#d97706':cat.color}}>{fmt(sp)}</div>
+                    {bud>0&&<div style={{fontSize:10,color:'#bbb'}}>Tope: {fmt(bud)}</div>}
+                    {bud===0&&<div style={{fontSize:10,color:'#bbb'}}>Tope: Establecer</div>}
+                  </div>
+                  <button onClick={e=>{e.stopPropagation();setEditCat(cat);setCatF({label:cat.label,icon:cat.icon,color:cat.color});setModal('cat')}} style={{width:32,height:32,borderRadius:9,background:darkMode?'rgba(255,255,255,.08)':'#f5f3ff',border:'none',fontSize:14,cursor:'pointer',color:'#7c3aed',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>✏️</button>
                 </div>
-              )
-            })}
-          </div>
+                {bud>0&&(
+                  <>
+                    <div style={S.pbar}><div style={{height:'100%',borderRadius:99,width:`${Math.min(pct,100)}%`,background:over?'linear-gradient(90deg,#ef4444,#dc2626)':near?`linear-gradient(90deg,#f59e0b,#d97706)`:`linear-gradient(90deg,${cat.color},${cat.color}88)`,transition:'width .5s'}}/></div>
+                    <div style={{display:'flex',justifyContent:'space-between',marginTop:4,fontSize:10}}>
+                      <span style={{color:'#bbb'}}>{pct.toFixed(0)}% usado</span>
+                      <span style={{color:over?'#dc2626':near?'#d97706':'#10b981',fontWeight:over||near?700:400}}>{over?'EXCEDIDO':near?`Solo ${fmt(bud-sp)} libre`:`${fmt(bud-sp)} libre`}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )
+          })}
 
           {/* Recurring quick apply */}
           {recur.length>0&&(
@@ -501,30 +518,7 @@ function FinanceApp({user}){
             </>
           )}
 
-          {/* Recent transactions */}
-          {recentAll.length>0&&(
-            <>
-              <div style={{...S.row,marginBottom:8}}>
-                <div style={S.sec}>Últimos movimientos</div>
-                <button onClick={()=>setView('moves')} style={{background:'none',border:'none',color:'#7c3aed',fontSize:11,fontWeight:700,cursor:'pointer'}}>Ver todos →</button>
-              </div>
-              {recentAll.map(item=>{
-                const cat=cats.find(c=>c.id===item.category),isInc=item.isInc
-                return(
-                  <div key={item.id} className="su" style={{...S.card(),display:'flex',alignItems:'center',gap:10,padding:'10px 12px'}}>
-                    <div style={{width:38,height:38,borderRadius:12,background:isInc?'#dcfce7':cat?`${cat.color}15`:'#f8f9fe',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,border:`1px solid ${isInc?'#bbf7d0':cat?cat.color+'30':'#f0f0f0'}`,flexShrink:0}}>
-                      {isInc?'💰':cat?.icon||'📦'}
-                    </div>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:13,fontWeight:700}}>{item.description||item.label||cat?.label}</div>
-                      <div style={{fontSize:11,color:'#bbb'}}>{isInc?'Ingreso extra':cat?.label} · {item.date}</div>
-                    </div>
-                    <div style={{fontSize:14,fontWeight:900,color:isInc?'#10b981':'#ef4444'}}>{isInc?'+':'-'}{fmt(item.amount)}</div>
-                  </div>
-                )
-              })}
-            </>
-          )}
+
 
           {/* Note */}
           <div style={S.sec}>Nota del mes</div>
