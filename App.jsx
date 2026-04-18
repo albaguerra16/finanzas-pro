@@ -212,6 +212,49 @@ function FinanceApp({user}){
   const totalDebtBalance = debts.reduce((s,d)=>s+d.balance,0)
   const totalMinPayments = debts.reduce((s,d)=>s+d.minPayment,0)
 
+  // ── Financial Score ──
+  const finScore = useMemo(()=>{
+    let score = 100
+    const msgs = []
+    const savCatId = cats.find(c=>c.label==='Ahorros')?.id||'ahorros'
+    const monSavings = monExp.filter(e=>e.category===savCatId).reduce((s,e)=>s+e.amount,0)
+    const savRate = totalInc>0?(monSavings/totalInc)*100:0
+
+    // Savings (30pts)
+    if(savRate>=20) msgs.push('Excelente tasa de ahorro 🏆')
+    else if(savRate>=10) msgs.push('Buen ahorro este mes 👍')
+    else if(savRate>0){ score-=10; msgs.push('Ahorro bajo, intenta el 10% 💡') }
+    else { score-=25; msgs.push('Sin ahorros este mes 😬') }
+
+    // Budget (30pts)
+    const catsWithBudget = cats.filter(c=>catBudget(c.id)>0)
+    const exceeded = catsWithBudget.filter(c=>catSpent(c.id)>catBudget(c.id))
+    if(exceeded.length===0&&catsWithBudget.length>0) msgs.push('Dentro del presupuesto 🎯')
+    else if(exceeded.length>0){ score-=exceeded.length*8; msgs.push(`${exceeded.length} categoría${exceeded.length>1?'s':''} excedida${exceeded.length>1?'s':''} ⚠️`) }
+    if(catsWithBudget.length===0){ score-=10; msgs.push('Define topes por categoría 📊') }
+
+    // Debts (20pts)
+    const activeDebts=debts.filter(d=>d.balance>0)
+    if(activeDebts.length>0){
+      const paid=monExp.filter(e=>(e.description||'').toLowerCase().includes('pago deuda')).reduce((s,e)=>s+e.amount,0)
+      if(paid>=totalMinPayments&&totalMinPayments>0) msgs.push('Deudas al día ✅')
+      else if(paid>0){ score-=5; msgs.push('Pagando deudas parcialmente 💳') }
+      else { score-=15; msgs.push('Sin pagos de deuda este mes 💳') }
+    }
+
+    // Spending ratio (20pts)
+    const ratio=totalInc>0?(totalSpent/totalInc)*100:100
+    if(ratio>95){ score-=20; msgs.push('Gastando casi todo el ingreso 🚨') }
+    else if(ratio>80){ score-=10; msgs.push('Gasto alto vs ingreso 📉') }
+    else if(ratio<60) msgs.push('Gasto muy controlado 💚')
+
+    score=Math.max(0,Math.min(100,score))
+    const grade=score>=90?'A+':score>=80?'A':score>=70?'B+':score>=60?'B':score>=50?'C':'D'
+    const color=score>=80?'#2DD4BF':score>=60?'#9B8FF7':score>=40?'#FCD34D':'#FB7185'
+    const label=score>=80?'Excelente 🌟':score>=60?'Bien 👍':score>=40?'Regular ⚡':'Mejorar 💪'
+    return {score,grade,color,label,msgs}
+  },[monExp,cats,budgets,totalInc,totalSpent,debts])
+
   const last6 = useMemo(()=>Array.from({length:6},(_,i)=>{
     const d=new Date(NOW.getFullYear(),NOW.getMonth()-5+i,1)
     const key=mk(d)
@@ -950,6 +993,83 @@ function FinanceApp({user}){
     )
   }
 
+  /* ════ SCORE VIEW ════ */
+  const ScoreView=()=>(
+    <div>
+      {/* Main score card */}
+      <div className="pop-in" style={{background:darkMode?`linear-gradient(135deg,${finScore.color}15,${finScore.color}06)`:`linear-gradient(135deg,${finScore.color}12,${finScore.color}04)`,border:`1px solid ${finScore.color}35`,borderRadius:20,padding:'24px',marginBottom:12,textAlign:'center',position:'relative',overflow:'hidden'}}>
+        <div style={{position:'absolute',right:-30,top:-30,width:140,height:140,borderRadius:'50%',background:`${finScore.color}08`,pointerEvents:'none'}}/>
+        <div style={{position:'absolute',left:-20,bottom:-20,width:100,height:100,borderRadius:'50%',background:`${finScore.color}06`,pointerEvents:'none'}}/>
+        <div style={{fontSize:12,color:C.mut,textTransform:'uppercase',letterSpacing:'1px',marginBottom:16}}>Score financiero — {MNF[new Date(selMon+'-01').getMonth()]}</div>
+        {/* Big ring */}
+        <div style={{position:'relative',width:160,height:160,margin:'0 auto 16px'}}>
+          <svg viewBox="0 0 160 160" style={{width:160,height:160,transform:'rotate(-90deg)'}}>
+            <defs><linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor={finScore.color}/>
+              <stop offset="100%" stopColor={finScore.color+'99'}/>
+            </linearGradient></defs>
+            <circle cx="80" cy="80" r="68" fill="none" stroke={`${finScore.color}18`} strokeWidth="12"/>
+            <circle cx="80" cy="80" r="68" fill="none" stroke={`url(#scoreGrad)`} strokeWidth="12"
+              strokeDasharray={`${2*Math.PI*68}`}
+              strokeDashoffset={`${2*Math.PI*68*(1-finScore.score/100)}`}
+              strokeLinecap="round" style={{transition:'stroke-dashoffset 1.2s ease'}}/>
+          </svg>
+          <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+            <div style={{fontSize:42,fontWeight:900,color:finScore.color,lineHeight:1}}>{finScore.score}</div>
+            <div style={{fontSize:13,color:C.mut,marginTop:2}}>/100</div>
+          </div>
+        </div>
+        <div style={{fontSize:32,fontWeight:900,color:finScore.color,marginBottom:4}}>{finScore.grade}</div>
+        <div style={{fontSize:16,fontWeight:700,color:finScore.color}}>{finScore.label}</div>
+      </div>
+
+      {/* Score breakdown */}
+      <div style={S.sec}>Desglose</div>
+      {(()=>{
+        const savCatId=cats.find(c=>c.label==='Ahorros')?.id||'ahorros'
+        const monSavings=monExp.filter(e=>e.category===savCatId).reduce((s,e)=>s+e.amount,0)
+        const savRate=totalInc>0?(monSavings/totalInc)*100:0
+        const catsWithBudget=cats.filter(c=>catBudget(c.id)>0)
+        const exceeded=catsWithBudget.filter(c=>catSpent(c.id)>catBudget(c.id))
+        const ratio=totalInc>0?(totalSpent/totalInc)*100:100
+        const items=[
+          {label:'Tasa de ahorro',val:`${savRate.toFixed(1)}%`,pts:savRate>=20?30:savRate>=10?20:savRate>0?15:5,max:30,color:savRate>=20?C.grn:savRate>=10?C.acc:C.amb},
+          {label:'Control de presupuesto',val:catsWithBudget.length>0?exceeded.length===0?'Al día':`${exceeded.length} excedida${exceeded.length>1?'s':''}`:'-',pts:catsWithBudget.length===0?20:exceeded.length===0?30:Math.max(0,30-exceeded.length*8),max:30,color:exceeded.length===0?C.grn:C.red},
+          {label:'Pago de deudas',val:debts.filter(d=>d.balance>0).length===0?'Sin deudas':'Ver deudas',pts:debts.filter(d=>d.balance>0).length===0?20:10,max:20,color:C.acc},
+          {label:'Gasto vs ingreso',val:`${ratio.toFixed(0)}%`,pts:ratio>95?0:ratio>80?10:20,max:20,color:ratio>95?C.red:ratio>80?C.amb:C.grn},
+        ]
+        return items.map((it,i)=>(
+          <div key={i} style={{...S.card(false),marginBottom:8}}>
+            <div style={{...S.row,marginBottom:8}}>
+              <div>
+                <div style={{fontSize:14,fontWeight:700}}>{it.label}</div>
+                <div style={{fontSize:12,color:C.mut}}>{it.val}</div>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontSize:18,fontWeight:900,color:it.color}}>{it.pts}</div>
+                <div style={{fontSize:11,color:C.mut}}>/ {it.max} pts</div>
+              </div>
+            </div>
+            <div style={S.pbar}>
+              <div style={{height:'100%',borderRadius:99,width:`${(it.pts/it.max)*100}%`,background:`linear-gradient(90deg,${it.color},${it.color}88)`,transition:'width .7s'}}/>
+            </div>
+          </div>
+        ))
+      })()}
+
+      {/* Tips */}
+      <div style={S.sec}>Consejos para mejorar</div>
+      {finScore.msgs.map((m,i)=>(
+        <div key={i} style={{...S.card(false),display:'flex',alignItems:'center',gap:12,marginBottom:8}}>
+          <div style={{width:36,height:36,borderRadius:12,background:`${finScore.color}15`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>
+            {i===0?'💡':i===1?'📊':i===2?'💳':'🎯'}
+          </div>
+          <div style={{fontSize:13,color:C.txt,fontWeight:500}}>{m}</div>
+        </div>
+      ))}
+    </div>
+  )
+
   /* ════ RENDER ════ */
   return(
     <div style={S.app}>
@@ -995,7 +1115,7 @@ function FinanceApp({user}){
       <button style={{...S.fab,animation:'popIn .5s .2s cubic-bezier(.22,1,.36,1) both'}} onClick={()=>{setEditExp(null);setExpF({...blankExp,category:cats[0]?.id||'comidas'});setModal('expense')}}>+</button>
 
       <nav style={S.bnav}>
-        {[{id:'home',icon:'🏠',l:'Inicio'},{id:'moves',icon:'📋',l:'Gastos'},{id:'debts',icon:'💳',l:'Deudas'},{id:'savings',icon:'🏦',l:'Ahorros'}].map(n=>(
+        {[{id:'home',icon:'🏠',l:'Inicio'},{id:'moves',icon:'📋',l:'Gastos'},{id:'debts',icon:'💳',l:'Deudas'},{id:'savings',icon:'🏦',l:'Ahorros'},{id:'score',icon:'⭐',l:'Score'}].map(n=>(
           <button key={n.id} style={S.nbtn(view===n.id)} onClick={()=>setView(n.id)}>
             <span style={{fontSize:20}}>{n.icon}</span>{n.l}
           </button>
