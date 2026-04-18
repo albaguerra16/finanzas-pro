@@ -176,12 +176,12 @@ function FinanceApp({user}){
   // ── Load all data ──
   useEffect(()=>{
     if(!user) return
-    const load = async()=>{
+    const load = async()=>{ try {
       const [c,s,b,e,i,r,g,n,d,gs] = await Promise.all([
         db.fetchCategories(user.id), db.fetchSalaries(user.id), db.fetchBudgets(user.id),
         db.fetchExpenses(user.id),   db.fetchIncomes(user.id),   db.fetchRecurring(user.id),
         db.fetchGoal(user.id),       db.fetchNotes(user.id),     db.fetchDebts(user.id),
-        db.fetchGoals(user.id)
+        db.fetchGoals(user.id).catch(()=>[])
       ])
       if(c.length>0) setCats(c.map(x=>({...x, id:x.id})))
       else {
@@ -192,6 +192,7 @@ function FinanceApp({user}){
       setSalaries(s); setBudgets(b); setExpenses(e); setIncomes(i)
       setRecur(r); setGoal(g); setNotes(n); setDebts(d); setGoals(gs||[])
       setDataReady(true)
+    } catch(err) { console.error('Load error:', err); setDataReady(true) }
     }
     load()
   },[user])
