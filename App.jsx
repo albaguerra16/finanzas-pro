@@ -589,7 +589,7 @@ function FinanceApp({user}){
       </div>
     ):null
     const globPct=totalBudget>0?(totalSpent/totalBudget)*100:(totalInc>0?(totalSpent/totalInc)*100:0)
-    const over80=cats.filter(c=>{const b=catBudget(c.id);return b>0&&catSpent(c.id)/b>=.8})
+    const over80=cats.filter(c=>{const b=budgets[c.id]??0;const sp=monExp.filter(e=>e.category===c.id).reduce((s,e)=>s+e.amount,0);return b>0&&sp/b>=.8})
     return(
       <div>
         {debtBannerEl}
@@ -1114,6 +1114,7 @@ function FinanceApp({user}){
           {view==='moves'  &&<Transactions/>}
           {view==='debts'  &&<Debts/>}
           {view==='savings'&&<Savings/>}
+          {view==='score'  &&<ScoreView/>}
         </div>
       </div>
 
