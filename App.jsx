@@ -190,6 +190,7 @@ function App2({user}){
   const [tmpS,setTmpS]=useState('')
   const [tmpB,setTmpB]=useState('')
   const [addGId,setAddGId]=useState(null)
+  const [autoApplied,setAutoApplied]=useState(0)
   const [addGA,setAddGA]=useState('')
 
   const bE={cat:cats[0]?.id||'comidas',amt:'',desc:'',date:today}
@@ -199,7 +200,7 @@ function App2({user}){
 
   const [eF,setEF]=useState(bE)
   const [iF,setIF]=useState({label:'',amt:'',date:today})
-  const [rF,setRF]=useState({label:'',amt:'',cat:'comidas',day:1})
+  const [rF,setRF]=useState({label:'',amt:'',cat:'comidas',day:1,auto:true})
   const [gF,setGF]=useState(bG)
   const [dF,setDF]=useState(bD)
   const [pF,setPF]=useState({amt:'',date:today,note:''})
@@ -218,7 +219,21 @@ function App2({user}){
       ])
       if(c.length>0){setCats(c.map(x=>{const df=DEFAULT_CATS.find(d=>d.id===x.id);return{...x,ico:df?.ico||'sparkle',clr:df?.clr||'indigo',emoji:df?.emoji||x.icon||'🎲'}}))}
       else{await Promise.all(DEFAULT_CATS.map(x=>db.upsertCategory(user.id,{...x,icon:x.emoji})));setCats(DEFAULT_CATS)}
-      setSals(s);setBuds(b);setExps(e);setIncs(i);setRecur(r);setNotes(n);setDebts(d);setGoals(gs||[]);setReady(true)
+      setSals(s);setBuds(b);setIncs(i);setRecur(r);setNotes(n);setDebts(d);setGoals(gs||[])
+      const todayMon=mk(NOW),todayDay=NOW.getDate(),eNew={...e}
+      let autoCount=0
+      for(const rec of r){
+        if(!rec.auto) continue
+        if(rec.day>todayDay) continue
+        const already=(eNew[todayMon]||[]).some(ex=>ex.description===rec.label&&ex.category===rec.category)
+        if(!already){
+          const expDate=`${todayMon}-${String(rec.day).padStart(2,'0')}`
+          const expData={category:rec.category,amount:rec.amount,description:rec.label,date:expDate}
+          const row=await db.insertExpense(user.id,expData)
+          if(row){eNew[todayMon]=[...(eNew[todayMon]||[]),{id:row.id,...expData}];autoCount++}
+        }
+      }
+      setExps(eNew);if(autoCount>0)setAutoApplied(autoCount);setReady(true)
     }catch(err){console.error(err);setReady(true)}}
     load()
   },[user])
@@ -302,9 +317,9 @@ function App2({user}){
   }
   const saveRec=async()=>{
     if(!rF.label||!rF.amt){notify('Completa los campos','err');return}
-    const row=await db.insertRecurring(user.id,{label:rF.label,amount:+rF.amt,category:rF.cat,day:rF.day})
-    if(row)setRecur(p=>[...p,{id:row.id,label:rF.label,amount:+rF.amt,category:rF.cat,day:rF.day}])
-    setRF({label:'',amt:'',cat:cats[0]?.id||'comidas',day:1});closeSh();notify('Recurrente guardado ✓')
+    const row=await db.insertRecurring(user.id,{label:rF.label,amount:+rF.amt,category:rF.cat,day:rF.day,auto:rF.auto})
+    if(row)setRecur(p=>[...p,{id:row.id,label:rF.label,amount:+rF.amt,category:rF.cat,day:rF.day,auto:rF.auto}])
+    setRF({label:'',amt:'',cat:cats[0]?.id||'comidas',day:1,auto:true});closeSh();notify('Recurrente guardado ✓')
   }
   const saveSal=async()=>{await db.upsertSalary(user.id,mon,+tmpS||0);setSals(p=>({...p,[mon]:+tmpS||0}));closeSh();notify('Salario guardado ✓')}
   const saveBud=async id=>{await db.upsertBudget(user.id,id,+tmpB||0);setBuds(p=>({...p,[id]:+tmpB||0}));setEditBC(null);closeSh();notify('Tope guardado ✓')}
@@ -405,6 +420,10 @@ function App2({user}){
         </div>
       </div>
 
+      {autoApplied>0&&<div style={{margin:'0 16px 12px',background:A.green[tn]+'18',border:`.5px solid ${A.green[tn]}40`,borderRadius:14,padding:'10px 14px',display:'flex',alignItems:'center',gap:10}} onClick={()=>setAutoApplied(0)}>
+        <div style={{width:28,height:28,borderRadius:8,background:A.green[tn],color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:14}}>⚡</div>
+        <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500,color:t.tx}}>{autoApplied} gasto{autoApplied>1?'s':''} aplicado{autoApplied>1?'s':''} automáticamente</div><div style={{fontSize:11,color:t.txS}}>Al inicio de {MNF[new Date(mon+'-01').getMonth()]} · toca para cerrar</div></div>
+      </div>}
       {(overdue.length>0||dueSoon.length>0)&&mon===mk(NOW)&&<div onClick={()=>setSc('debts')} style={{margin:'0 16px 12px',background:A.orange[tn]+'18',border:`.5px solid ${A.orange[tn]}40`,borderRadius:14,padding:'10px 14px',display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
         <div style={{width:28,height:28,borderRadius:8,background:A.orange[tn],color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Ic.bell s={15}/></div>
         <div style={{flex:1}}>{overdue.length>0&&<div style={{fontSize:13,fontWeight:600,color:t.tx}}>Vencidas: {overdue.map(d=>d.name).join(', ')}</div>}{dueSoon.length>0&&<div style={{fontSize:11,color:t.txS}}>Próximas: {dueSoon.map(d=>`${d.name} día ${d.dueDay}`).join(' · ')}</div>}</div>
@@ -602,11 +621,28 @@ function App2({user}){
             }
             <div style={{fontSize:13,color:t.txS,textTransform:'uppercase',letterSpacing:'.4px',margin:'16px 4px 8px'}}>Gastos fijos</div>
             <button onClick={()=>openSh('recur')} style={{width:'100%',background:t.fiS,border:`.5px dashed ${t.sep}`,borderRadius:14,color:blue,padding:'13px',fontSize:15,fontWeight:500,cursor:'pointer',marginBottom:8,fontFamily:'inherit'}}>+ Agregar gasto recurrente</button>
-            {recur.map(r=>{const cat=cats.find(c=>c.id===r.category),applied=mE.some(e=>e.description===r.label&&e.category===r.category),color=catColor(cat)
-              return <div key={r.id} style={{background:t.bgE,borderRadius:14,padding:'12px 16px',marginBottom:6,display:'flex',alignItems:'center',gap:12,opacity:applied?.6:1}}>
-                <div style={{flex:1}}><div style={{fontSize:15,fontWeight:500,color:t.tx}}>{r.label} {applied&&<span style={{fontSize:11,color:A.green[tn]}}>✓</span>}</div><div style={{fontSize:12,color:t.txS}}>Día {r.day} · {cat?.label}</div></div>
-                <span style={{fontSize:14,fontWeight:600,color}}>{fmt(r.amount)}</span>
-                {!applied&&<button onClick={()=>applyRec(r)} style={{background:color+'28',border:'none',borderRadius:8,color,padding:'6px 10px',fontSize:12,cursor:'pointer',fontWeight:600,fontFamily:'inherit'}}>Aplicar</button>}
+            {recur.map(r=>{
+              const cat=cats.find(c=>c.id===r.category)
+              const applied=mE.some(e=>e.description===r.label&&e.category===r.category)
+              const color=catColor(cat)
+              const pending=!applied&&r.day<=NOW.getDate()
+              const future=!applied&&r.day>NOW.getDate()
+              const daysLeft=r.day-NOW.getDate()
+              return <div key={r.id} style={{background:t.bgE,border:pending?`.5px solid ${A.orange[tn]}40`:'0.5px solid transparent',borderRadius:14,padding:'12px 16px',marginBottom:6,display:'flex',alignItems:'center',gap:12,opacity:applied?.6:1}}>
+                <div style={{width:34,height:34,borderRadius:10,background:color+'22',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{catDisp(cat)}</div>
+                <div style={{flex:1}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <div style={{fontSize:15,fontWeight:500,color:t.tx}}>{r.label}</div>
+                    <div style={{fontSize:14,fontWeight:600,color:applied?t.txS:color}}>{fmt(r.amount)}</div>
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:3}}>
+                    <div style={{fontSize:11,color:t.txS}}>Día {r.day} · {cat?.label}{r.auto?' · auto':''}</div>
+                    {applied&&<span style={{fontSize:10,background:A.green[tn]+'22',color:A.green[tn],borderRadius:20,padding:'1px 7px'}}>aplicado</span>}
+                    {pending&&<span style={{fontSize:10,background:A.orange[tn]+'22',color:A.orange[tn],borderRadius:20,padding:'1px 7px'}}>pendiente</span>}
+                    {future&&<span style={{fontSize:10,background:t.fiS,color:t.txS,borderRadius:20,padding:'1px 7px'}}>día {r.day}</span>}
+                  </div>
+                </div>
+                {pending&&!r.auto&&<button onClick={()=>applyRec(r)} style={{background:color+'28',border:'none',borderRadius:8,color,padding:'6px 10px',fontSize:12,cursor:'pointer',fontWeight:600,fontFamily:'inherit'}}>Aplicar</button>}
                 <button onClick={()=>delRec(r.id)} style={{width:30,height:30,borderRadius:8,background:A.red[tn]+'18',border:'none',color:A.red[tn],cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><Ic.trash s={14}/></button>
               </div>
             })}
@@ -975,6 +1011,15 @@ function App2({user}){
         <input value={rF.amt} onChange={e=>setRF(p=>({...p,amt:e.target.value}))} type="number" placeholder="Monto $" style={shInp2}/>
         <select value={rF.cat} onChange={e=>setRF(p=>({...p,cat:e.target.value}))} style={shSel}>{cats.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select>
         <input value={rF.day} onChange={e=>setRF(p=>({...p,day:+e.target.value}))} type="number" min="1" max="31" placeholder="Día del mes (ej: 15)" style={shInp2}/>
+        <div style={{background:t.bgE2,borderRadius:13,padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+          <div>
+            <div style={{fontSize:15,color:t.tx}}>Aplicar automáticamente</div>
+            <div style={{fontSize:12,color:t.txS,marginTop:2}}>Se registra solo cada mes en esa fecha</div>
+          </div>
+          <div onClick={()=>setRF(p=>({...p,auto:!p.auto}))} style={{width:44,height:26,borderRadius:13,background:rF.auto?A.green[tn]:t.fi,cursor:'pointer',position:'relative',transition:'background 200ms',flexShrink:0}}>
+            <div style={{width:22,height:22,borderRadius:11,background:'#fff',position:'absolute',top:2,left:rF.auto?20:2,transition:'left 200ms'}}/>
+          </div>
+        </div>
       </div>
     </Sheet>
 
