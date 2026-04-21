@@ -380,7 +380,6 @@ function App2({user}){
     const bPct=tBud>0?tSpent/tBud:tInc>0?tSpent/tInc:0
     const sPct=tInc>0?mSav/(tInc*0.2):0
     const over80=cats.filter(c=>{const b=cBud(c.id),sp=cSp(c.id);return b>0&&sp/b>=.8})
-    const recent=[...mE.map(e=>({...e,isI:false})),...mI.map(e=>({...e,isI:true}))].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,4)
     return <div style={{paddingBottom:90}}>
       <div style={{padding:'18px 20px 8px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <div>
@@ -445,12 +444,12 @@ function App2({user}){
 
       <div style={{padding:'4px 20px 10px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <div style={{fontSize:22,fontWeight:700,letterSpacing:'-.5px',color:t.tx}}>Categorías</div>
-        <button onClick={()=>setSc('categories')} style={{background:'none',border:'none',color:blue,fontSize:15,fontWeight:500,cursor:'pointer'}}>Ver todas</button>
+        <button onClick={()=>{setEditCt(null);setCtF({label:'',ico:'sparkle',clr:'indigo',emoji:'🎲'});openSh('cat')}} style={{background:'none',border:'none',color:blue,fontSize:15,fontWeight:500,cursor:'pointer'}}>+ Nueva</button>
       </div>
       <div style={{margin:'0 16px 20px',borderRadius:16,background:t.bgE,overflow:'hidden'}}>
-        {cats.slice(0,5).map((cat,i)=>{
+        {cats.map((cat,i)=>{
           const sp=cSp(cat.id),bud=cBud(cat.id),pct=bud>0?Math.min(1.2,sp/bud):0,over=bud>0&&sp>bud,color=catColor(cat)
-          return <div key={cat.id} onClick={()=>{setSelCat(cat);setSc('catDetail')}} style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',cursor:'pointer',borderBottom:i<4?`.5px solid ${t.sepF}`:'none'}}>
+          return <div key={cat.id} onClick={()=>{setSelCat(cat);setSc('catDetail')}} style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',cursor:'pointer',borderBottom:i<cats.length-1?`.5px solid ${t.sepF}`:'none'}}>
             <div style={{width:36,height:36,borderRadius:10,background:color,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:18}}>{catDisp(cat)}</div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',gap:8}}>
@@ -466,21 +465,6 @@ function App2({user}){
         })}
       </div>
 
-      {recent.length>0&&<>
-        <div style={{padding:'4px 20px 10px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div style={{fontSize:22,fontWeight:700,letterSpacing:'-.5px',color:t.tx}}>Recientes</div>
-          <button onClick={()=>setSc('moves')} style={{background:'none',border:'none',color:blue,fontSize:15,fontWeight:500,cursor:'pointer'}}>Todas</button>
-        </div>
-        <div style={{margin:'0 16px 20px',borderRadius:16,background:t.bgE,overflow:'hidden'}}>
-          {recent.map((item,i)=>{const cat=cats.find(c=>c.id===item.category),isI=item.isI,color=isI?A.green[tn]:catColor(cat)
-            return <div key={item.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',borderBottom:i<recent.length-1?`.5px solid ${t.sepF}`:'none'}}>
-              <div style={{width:36,height:36,borderRadius:10,background:color+'22',color,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{isI?'💰':catDisp(cat)}</div>
-              <div style={{flex:1,minWidth:0}}><div style={{fontSize:15,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:t.tx}}>{item.description||item.label||cat?.label}</div><div style={{fontSize:12,color:t.txS}}>{isI?'Ingreso':cat?.label} · {item.date}</div></div>
-              <div style={{fontSize:15,fontWeight:600,color:isI?A.green[tn]:t.tx}}>{isI?'+':'-'}{fmt(item.amount)}</div>
-            </div>
-          })}
-        </div>
-      </>}
 
       <div style={{margin:'0 16px 20px',background:`linear-gradient(135deg,${score.color},${score.color}88)`,borderRadius:20,padding:'20px',color:'#fff',cursor:'pointer'}} onClick={()=>setSc('score')}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
