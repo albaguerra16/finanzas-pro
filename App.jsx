@@ -70,6 +70,7 @@ const Ic={
   arrowUp:p=><SF {...p} d="M12 19V5M5 12l7-7 7 7"/>,
   arrowDown:p=><SF {...p} d="M12 5v14M19 12l-7 7-7-7"/>,
   alert:p=><SF {...p} d="M12 3L2 20h20L12 3zM12 10v5M12 18h.01"/>,
+  refresh:p=><SF {...p}><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></SF>,
 }
 
 // Activity Rings
@@ -434,7 +435,7 @@ function App2({user}){
       </div>}
 
       <div style={{padding:'0 16px 16px',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
-        {[{id:'categories',lb:'Categorías',ico:'apps',clr:'indigo'},{id:'insights',lb:'Insights',ico:'sparkle',clr:'pink'},{id:'profile',lb:'Perfil',ico:'person',clr:'blue'}].map(q=>{const QI=Ic[q.ico];return(
+        {[{id:'categories',lb:'Categorías',ico:'apps',clr:'indigo'},{id:'insights',lb:'Insights',ico:'sparkle',clr:'pink'},{id:'recur',lb:'Recurrentes',ico:'refresh',clr:'teal'}].map(q=>{const QI=Ic[q.ico];return(
           <button key={q.id} onClick={()=>setSc(q.id)} style={{background:t.bgE,border:'none',borderRadius:14,padding:'12px',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'flex-start',gap:8,color:t.tx}}>
             <div style={{width:30,height:30,borderRadius:8,background:ac(q.clr),color:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}><QI s={17}/></div>
             <div style={{fontSize:13,fontWeight:500}}>{q.lb}</div>
@@ -856,6 +857,99 @@ function App2({user}){
     </div>
   }
 
+  const RecurScreen=()=>{
+    const [showForm,setShowForm]=useState(false)
+    return <div style={{paddingBottom:90}}>
+      <NB title="Recurrentes" onBack={()=>setSc('home')} t={t} right={
+        <button onClick={()=>openSh('recur')} style={{width:36,height:36,borderRadius:18,border:'none',background:t.fi,color:t.tx,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}><Ic.plus s={22}/></button>
+      }/>
+      <div style={{padding:'0 16px 20px'}}>
+        <div style={{fontSize:34,fontWeight:700,letterSpacing:'-1.2px',padding:'8px 4px 16px',color:t.tx}}>Recurrentes</div>
+
+        {/* Summary */}
+        <div style={{background:t.bgE,borderRadius:18,padding:'16px 18px',marginBottom:16}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+            <div>
+              <div style={{fontSize:13,color:t.txS}}>Total mensual fijo</div>
+              <div style={{fontSize:28,fontWeight:700,letterSpacing:'-0.8px',color:t.tx}}>{fmt(recur.reduce((s,r)=>s+r.amount,0))}</div>
+            </div>
+            <div style={{textAlign:'right'}}>
+              <div style={{fontSize:13,color:t.txS}}>{recur.length} gastos fijos</div>
+              <div style={{fontSize:13,color:A.green[tn],marginTop:4}}>{recur.filter(r=>mE.some(e=>e.description===r.label&&e.category===r.category)).length} aplicados este mes</div>
+            </div>
+          </div>
+          <div style={{height:4,background:t.fiS,borderRadius:2,overflow:'hidden'}}>
+            <div style={{height:'100%',width:`${recur.length>0?(recur.filter(r=>mE.some(e=>e.description===r.label&&e.category===r.category)).length/recur.length)*100:0}%`,background:A.green[tn],transition:'width 600ms',borderRadius:2}}/>
+          </div>
+        </div>
+
+        {/* Auto vs Manual */}
+        {recur.length>0&&<><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
+          <div style={{background:A.green[tn]+'18',borderRadius:14,padding:'12px 14px'}}>
+            <div style={{fontSize:11,color:A.green[tn],marginBottom:4}}>⚡ Automáticos</div>
+            <div style={{fontSize:22,fontWeight:700,color:t.tx}}>{recur.filter(r=>r.auto).length}</div>
+            <div style={{fontSize:11,color:t.txS,marginTop:2}}>{fmt(recur.filter(r=>r.auto).reduce((s,r)=>s+r.amount,0))}/mes</div>
+          </div>
+          <div style={{background:t.bgE,borderRadius:14,padding:'12px 14px',border:`0.5px solid ${t.sep}`}}>
+            <div style={{fontSize:11,color:t.txS,marginBottom:4}}>👆 Manuales</div>
+            <div style={{fontSize:22,fontWeight:700,color:t.tx}}>{recur.filter(r=>!r.auto).length}</div>
+            <div style={{fontSize:11,color:t.txS,marginTop:2}}>{fmt(recur.filter(r=>!r.auto).reduce((s,r)=>s+r.amount,0))}/mes</div>
+          </div>
+        </div></>}
+
+        {/* List */}
+        {recur.length===0
+          ?<div style={{background:t.bgE,borderRadius:16,padding:'40px 20px',textAlign:'center'}}>
+            <div style={{fontSize:36,marginBottom:12}}>🔄</div>
+            <div style={{fontSize:16,fontWeight:500,color:t.tx,marginBottom:8}}>Sin gastos recurrentes</div>
+            <div style={{fontSize:14,color:t.txS,marginBottom:20}}>Agrega tus pagos fijos como Netflix, arriendo, gym...</div>
+            <button onClick={()=>openSh('recur')} style={{background:A.teal[tn],border:'none',borderRadius:12,color:'#fff',padding:'12px 24px',fontSize:15,fontWeight:600,cursor:'pointer'}}>+ Agregar primero</button>
+          </div>
+          :<div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {[...recur].sort((a,b)=>a.day-b.day).map(r=>{
+              const cat=cats.find(c=>c.id===r.category)
+              const applied=mE.some(e=>e.description===r.label&&e.category===r.category)
+              const color=catColor(cat)
+              const pending=!applied&&r.day<=NOW.getDate()
+              const future=!applied&&r.day>NOW.getDate()
+              return <div key={r.id} style={{background:t.bgE,borderRadius:16,padding:'14px 16px',border:pending?`.5px solid ${A.orange[tn]}40`:`0.5px solid ${t.sepF}`}}>
+                <div style={{display:'flex',alignItems:'center',gap:12}}>
+                  <div style={{width:40,height:40,borderRadius:12,background:color+'22',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0}}>{catDisp(cat)}</div>
+                  <div style={{flex:1}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                      <div style={{fontSize:16,fontWeight:500,color:t.tx}}>{r.label}</div>
+                      <div style={{fontSize:16,fontWeight:700,color:applied?t.txS:color}}>{fmt(r.amount)}</div>
+                    </div>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:4}}>
+                      <div style={{fontSize:12,color:t.txS}}>Día {r.day} · {cat?.label}</div>
+                      <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                        {r.auto&&<span style={{fontSize:10,background:A.teal[tn]+'22',color:A.teal[tn],borderRadius:20,padding:'2px 7px'}}>⚡ auto</span>}
+                        {applied&&<span style={{fontSize:10,background:A.green[tn]+'22',color:A.green[tn],borderRadius:20,padding:'2px 7px'}}>✓ aplicado</span>}
+                        {pending&&<span style={{fontSize:10,background:A.orange[tn]+'22',color:A.orange[tn],borderRadius:20,padding:'2px 7px'}}>pendiente</span>}
+                        {future&&<span style={{fontSize:10,background:t.fiS,color:t.txS,borderRadius:20,padding:'2px 7px'}}>día {r.day}</span>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {pending&&!r.auto&&<div style={{marginTop:10,display:'flex',gap:8}}>
+                  <button onClick={()=>applyRec(r)} style={{flex:1,background:color,border:'none',borderRadius:10,color:'#fff',padding:'9px',fontSize:13,fontWeight:600,cursor:'pointer'}}>Aplicar ahora</button>
+                  <button onClick={()=>delRec(r.id)} style={{width:36,height:36,background:A.red[tn]+'18',border:'none',borderRadius:10,color:A.red[tn],cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><Ic.trash s={15}/></button>
+                </div>}
+                {(applied||future||r.auto)&&<div style={{marginTop:8,display:'flex',justifyContent:'flex-end'}}>
+                  <button onClick={()=>delRec(r.id)} style={{width:30,height:30,background:A.red[tn]+'18',border:'none',borderRadius:8,color:A.red[tn],cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><Ic.trash s={14}/></button>
+                </div>}
+              </div>
+            })}
+          </div>
+        }
+        <button onClick={()=>openSh('recur')} style={{width:'100%',marginTop:12,background:t.fi,border:`0.5px dashed ${t.sep}`,borderRadius:14,color:blue,padding:'13px',fontSize:15,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+          <Ic.plus s={18}/>Agregar recurrente
+        </button>
+      </div>
+    </div>
+  }
+
+
   const Profile=()=><div style={{paddingBottom:90}}>
     <NB title="Perfil" onBack={()=>setSc('home')} blue={blue}/>
     <div style={{padding:'0 0 24px'}}>
@@ -938,9 +1032,9 @@ function App2({user}){
 
   // ── BOTTOM NAV ──
   const BNav=()=>{
-    const navSc=['home','categories','catDetail','insights','profile'].includes(sc)?'home':['debts','debtDetail'].includes(sc)?'debts':sc==='savings'?'savings':sc==='score'?'score':sc
-    return <div style={{position:'fixed',bottom:0,left:0,right:0,background:t.blur,backdropFilter:'blur(30px) saturate(180%)',WebkitBackdropFilter:'blur(30px) saturate(180%)',borderTop:`.5px solid ${t.sep}`,padding:'10px 0 22px',display:'flex',alignItems:'center',justifyContent:'space-around',zIndex:20}}>
-      {[{id:'home',lb:'Resumen',Icon:Ic.house},{id:'debts',lb:'Deudas',Icon:Ic.card},{id:'savings',lb:'Ahorros',Icon:Ic.target},{id:'score',lb:'Score',Icon:Ic.chart}].map(item=>{
+    const navSc=['home','categories','catDetail','insights','profile','recur'].includes(sc)?'home':sc==='moves'?'moves':['debts','debtDetail'].includes(sc)?'debts':sc==='savings'?'savings':sc==='score'?'score':sc
+    return <div style={{position:'fixed',bottom:0,left:0,right:0,background:t.blur,backdropFilter:'blur(30px) saturate(180%)',WebkitBackdropFilter:'blur(30px) saturate(180%)',borderTop:`.5px solid ${t.sep}`,padding:'8px 0 20px',display:'flex',alignItems:'center',justifyContent:'space-around',zIndex:20}}>
+      {[{id:'home',lb:'Resumen',Icon:Ic.house},{id:'moves',lb:'Gastos',Icon:Ic.receipt},{id:'debts',lb:'Deudas',Icon:Ic.card},{id:'savings',lb:'Ahorros',Icon:Ic.target},{id:'score',lb:'Score',Icon:Ic.chart}].map(item=>{
         const active=navSc===item.id,color=active?t.tx:t.txS
         return <button key={item.id} onClick={()=>{setSc(item.id);setSelCat(null);setSelDebt(null)}} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,background:'none',border:'none',cursor:'pointer',color,transition:'color 200ms',fontFamily:'inherit'}}>
           <item.Icon s={24} st={{color}}/><div style={{fontSize:10,fontWeight:active?600:400,letterSpacing:'-.1px'}}>{item.lb}</div>
@@ -950,7 +1044,7 @@ function App2({user}){
     </div>
   }
 
-  const renderSc=()=>{switch(sc){case 'categories':return <CatList/>;case 'catDetail':return <CatDetail/>;case 'moves':return <Moves/>;case 'debts':return <Debts/>;case 'debtDetail':return <DebtDetail/>;case 'savings':return <Savings/>;case 'score':return <Score/>;case 'profile':return <Profile/>;case 'insights':return <Insights/>;default:return <Home/>}}
+  const renderSc=()=>{switch(sc){case 'categories':return <CatList/>;case 'catDetail':return <CatDetail/>;case 'moves':return <Moves/>;case 'debts':return <Debts/>;case 'debtDetail':return <DebtDetail/>;case 'savings':return <Savings/>;case 'score':return <Score/>;case 'profile':return <Profile/>;case 'insights':return <Insights/>;case'recur':return <RecurScreen/>;case'moves':return <Moves/>;default:return <Home/>}}
   const noNav=['catDetail','debtDetail'].includes(sc)
   const shInp2={...shI,fontFamily:'inherit'}
   const shSel={...shI,cursor:'pointer',fontFamily:'inherit'}
