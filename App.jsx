@@ -204,7 +204,7 @@ function App2({user}){
   const [rF,setRF]=useState({label:'',amt:'',cat:'comidas',day:1,auto:true})
   const [gF,setGF]=useState(bG)
   const [dF,setDF]=useState(bD)
-  const [pF,setPF]=useState({amt:'',date:today,note:''})
+  const [pF,setPF]=useState({amt:'',date:today,note:'',expCat:null})
   const [cF,setCF]=useState(bC)
 
   const notify=(msg,type='ok')=>{setNotif({msg,type});setTimeout(()=>setNotif(null),3000)}
@@ -340,7 +340,13 @@ function App2({user}){
     await db.updateDebt(payD.id,{...payD,balance:nb})
     const pr=await db.insertDebtPayment(user.id,payD.id,{amount:amt,date:pF.date,note:pF.note})
     setDebts(p=>p.map(d=>d.id!==payD.id?d:{...d,balance:nb,payments:[...(d.payments||[]),(pr?{id:pr.id,date:pF.date,amount:amt,note:pF.note}:{})]}))
-    regPay._s=false;setPF({amt:'',date:today,note:''});setPayD(null);closeSh();notify('Pago registrado ✓')
+    // Registrar como gasto si el usuario eligió una categoría
+    if(pF.expCat){
+      const expData={category:pF.expCat,amount:amt,description:`Pago ${payD.name}${pF.note?' · '+pF.note:''}`,date:pF.date}
+      const expRow=await db.insertExpense(user.id,expData)
+      if(expRow){const mk2=pF.date.slice(0,7);setExps(p=>({...p,[mk2]:[...(p[mk2]||[]),{id:expRow.id,...expData}]}))}
+    }
+    regPay._s=false;setPF({amt:'',date:today,note:'',expCat:null});setPayD(null);closeSh();notify('Pago registrado ✓')
   }
   const delPay=async(dId,pId,amt)=>{await db.deleteDebtPayment(pId);setDebts(p=>p.map(d=>d.id!==dId?d:{...d,balance:d.balance+amt,payments:d.payments.filter(p=>p.id!==pId)}));notify('Pago eliminado')}
   const saveGoal=async()=>{
@@ -393,17 +399,38 @@ function App2({user}){
         </div>
       </div>
 
-      <div style={{padding:'8px 16px 20px',display:'flex',gap:18,alignItems:'center'}}>
-        <Rings sz={170} th={17} gap={4} bg={theme==='dark'?'rgba(255,255,255,.08)':'rgba(0,0,0,.06)'} data={[{v:bPct,color:A.red[tn]},{v:sPct,color:A.green[tn]},{v:1,color:blue}]}/>
-        <div style={{flex:1,display:'flex',flexDirection:'column',gap:12}}>
-          {[{color:A.red[tn],lb:'GASTO',val:fmt(tSpent),sub:`de ${fmt(tBud||tInc)}`},{color:A.green[tn],lb:'AHORRO',val:fmt(mSav),sub:`${tInc>0?((mSav/tInc)*100).toFixed(0):0}%`},{color:blue,lb:'INGRESO',val:fmt(tInc),sub:'Este mes'}].map(s=>(
-            <div key={s.lb} style={{display:'flex',alignItems:'center',gap:10}}>
-              <div style={{width:8,height:8,borderRadius:4,background:s.color,flexShrink:0}}/>
-              <div><div style={{fontSize:10,color:t.txS,textTransform:'uppercase',letterSpacing:'.5px'}}>{s.lb}</div><div style={{fontSize:17,fontWeight:600,letterSpacing:'-.3px',lineHeight:1.1,color:t.tx}}>{s.val}</div><div style={{fontSize:11,color:t.txT}}>{s.sub}</div></div>
-            </div>
-          ))}
+      {/* ── Anillos + leyenda categorías ── */}
+      {(()=>{
+        const ringColors=[A.red[tn],A.teal[tn],A.green[tn]]
+        const top3=(cats.filter(c=>cBud(c.id)>0).sort((a,b)=>cSp(b.id)-cSp(a.id)).slice(0,3).length>0
+          ?cats.filter(c=>cBud(c.id)>0).sort((a,b)=>cSp(b.id)-cSp(a.id)).slice(0,3)
+          :cats.filter(c=>cSp(c.id)>0).sort((a,b)=>cSp(b.id)-cSp(a.id)).slice(0,3))
+        const hasBud=cats.some(c=>cBud(c.id)>0)
+        const ringsData=top3.map((c,i)=>{
+          const pct=hasBud&&cBud(c.id)>0?cSp(c.id)/cBud(c.id):cSp(c.id)/(tSpent||1)
+          return{v:Math.min(pct,1.05),color:ringColors[i]}
+        })
+        return <div style={{display:'flex',alignItems:'center',gap:16,padding:'8px 16px 20px'}}>
+          <Rings sz={170} th={17} gap={4} bg={theme==='dark'?'rgba(255,255,255,.08)':'rgba(0,0,0,.06)'} data={ringsData.length>0?ringsData:[{v:0,color:A.red[tn]}]}/>
+          <div style={{flex:1,display:'flex',flexDirection:'column',gap:14}}>
+            {top3.map((c,i)=>{
+              const rCol=ringColors[i]
+              const pct=hasBud&&cBud(c.id)>0?Math.round(cSp(c.id)/cBud(c.id)*100):Math.round(cSp(c.id)/(tSpent||1)*100)
+              const over=pct>=100
+              return <div key={c.id} style={{display:'flex',alignItems:'center',gap:8}}>
+                <div style={{width:10,height:10,borderRadius:5,background:rCol,flexShrink:0}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,color:t.tx,fontWeight:500}}>{catDisp(c)} {c.label}</div>
+                  <div style={{fontSize:11,color:t.txS,marginTop:1}}>{fmt(cSp(c.id))}{hasBud&&cBud(c.id)>0?` de ${fmt(cBud(c.id))}`:''}</div>
+                </div>
+                <div style={{fontSize:14,fontWeight:700,color:over?A.red[tn]:rCol,flexShrink:0}}>{pct}%</div>
+              </div>
+            })}
+            {top3.length===0&&<div style={{fontSize:13,color:t.txT,textAlign:'center'}}>Sin gastos aún</div>}
+          </div>
         </div>
-      </div>
+      })()}
+      
 
       <div style={{margin:'0 16px 16px',background:t.bgE,borderRadius:20,padding:'22px',position:'relative',overflow:'hidden'}}>
         <div style={{position:'absolute',right:-30,top:-30,width:120,height:120,borderRadius:60,background:blue+'14'}}/>
@@ -429,10 +456,7 @@ function App2({user}){
         <div style={{flex:1}}>{overdue.length>0&&<div style={{fontSize:13,fontWeight:600,color:t.tx}}>Vencidas: {overdue.map(d=>d.name).join(', ')}</div>}{dueSoon.length>0&&<div style={{fontSize:11,color:t.txS}}>Próximas: {dueSoon.map(d=>`${d.name} día ${d.dueDay}`).join(' · ')}</div>}</div>
         <Ic.chevR s={16} st={{color:t.txT}}/>
       </div>}
-      {over80.length>0&&<div style={{margin:'0 16px 12px',background:A.yellow[tn]+'18',border:`.5px solid ${A.yellow[tn]}40`,borderRadius:14,padding:'10px 14px',display:'flex',alignItems:'center',gap:10}}>
-        <span style={{fontSize:18}}>⚠️</span><div style={{fontSize:13,fontWeight:500,color:t.tx}}>Cerca del tope: {over80.map(c=>c.label).join(', ')}</div>
-      </div>}
-
+      
       <div style={{padding:'0 16px 16px',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
         {[{id:'categories',lb:'Categorías',ico:'apps',clr:'indigo'},{id:'insights',lb:'Insights',ico:'sparkle',clr:'pink'},{id:'recur',lb:'Recurrentes',ico:'refresh',clr:'teal'}].map(q=>{const QI=Ic[q.ico];return(
           <button key={q.id} onClick={()=>setSc(q.id)} style={{background:t.bgE,border:'none',borderRadius:14,padding:'12px',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'flex-start',gap:8,color:t.tx}}>
@@ -444,7 +468,7 @@ function App2({user}){
 
       <div style={{padding:'4px 20px 10px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <div style={{fontSize:22,fontWeight:700,letterSpacing:'-.5px',color:t.tx}}>Categorías</div>
-        <button onClick={()=>{setEditCt(null);setCtF({label:'',ico:'sparkle',clr:'indigo',emoji:'🎲'});openSh('cat')}} style={{background:'none',border:'none',color:blue,fontSize:15,fontWeight:500,cursor:'pointer'}}>+ Nueva</button>
+        <button onClick={()=>{setEditC(null);setCF(bC);openSh('cat')}} style={{background:'none',border:'none',color:blue,fontSize:15,fontWeight:500,cursor:'pointer'}}>+ Nueva</button>
       </div>
       <div style={{margin:'0 16px 20px',borderRadius:16,background:t.bgE,overflow:'hidden'}}>
         {cats.map((cat,i)=>{
@@ -1112,6 +1136,11 @@ function App2({user}){
         <input value={pF.amt} onChange={e=>setPF(p=>({...p,amt:e.target.value}))} type="number" placeholder={`Monto (mín. ${fmt(payD?.minPayment||0)})`} style={shInp2}/>
         <input value={pF.date} onChange={e=>setPF(p=>({...p,date:e.target.value}))} type="date" style={shInp2}/>
         <input value={pF.note} onChange={e=>setPF(p=>({...p,note:e.target.value}))} placeholder="Nota (opcional)" style={shInp2}/>
+        <div style={{fontSize:13,color:t.txS,marginBottom:8,marginTop:4}}>Registrar también como gasto en:</div>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap',paddingBottom:4}}>
+          <button onClick={()=>setPF(p=>({...p,expCat:null}))} style={{background:!pF.expCat?A.blue[tn]:t.bgE2,color:!pF.expCat?'#fff':t.txS,border:'none',borderRadius:10,padding:'7px 12px',fontSize:12,cursor:'pointer',fontWeight:500,flexShrink:0}}>No registrar</button>
+          {cats.map(c=><button key={c.id} onClick={()=>setPF(p=>({...p,expCat:c.id}))} style={{background:pF.expCat===c.id?catColor(c):t.bgE2,color:pF.expCat===c.id?'#fff':t.tx,border:'none',borderRadius:10,padding:'7px 12px',fontSize:12,cursor:'pointer',fontWeight:500,display:'flex',alignItems:'center',gap:4,flexShrink:0}}>{catDisp(c)} {c.label}</button>)}
+        </div>
       </div>
     </Sheet>
 
