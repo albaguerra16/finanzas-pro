@@ -239,10 +239,18 @@ function App2({user}){
     load()
   },[user])
 
-  const sal=sals[mon]??(Object.values(sals)[0]??0)
+  // Ciclo de flujo de caja: si no hay salario en el mes actual,
+  // usar el del mes anterior (cobro de fin de mes anterior para gastos del mes actual)
+  const prevMon=(()=>{const d=new Date(mon+'-01');d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7)})()
+  const salCurrent=sals[mon]??0
+  const salPrev=sals[prevMon]??0
+  // Si no hay salario este mes, usar el del mes anterior (ciclo fin de mes)
+  const sal=salCurrent>0?salCurrent:salPrev>0?salPrev:(Object.values(sals)[0]??0)
+  const isCycleCarry=salCurrent===0&&salPrev>0&&mon===mk(NOW)
   const mE=exps[mon]||[], mI=incs[mon]||[]
-  const tSpent=mE.reduce((s,e)=>s+e.amount,0)
+  // Ingresos extra: solo los del mes actual (no salario)
   const tInc=sal+mI.reduce((s,e)=>s+e.amount,0)
+  const tSpent=mE.reduce((s,e)=>s+e.amount,0)
   const avail=tInc-tSpent
   const savId=cats.find(c=>c.id==='ahorros')?.id||'ahorros'
   const mSav=mE.filter(e=>e.category===savId).reduce((s,e)=>s+e.amount,0)
@@ -434,7 +442,7 @@ function App2({user}){
 
       <div style={{margin:'0 16px 16px',background:t.bgE,borderRadius:20,padding:'22px',position:'relative',overflow:'hidden'}}>
         <div style={{position:'absolute',right:-30,top:-30,width:120,height:120,borderRadius:60,background:blue+'14'}}/>
-        <div style={{fontSize:13,color:t.txS}}>Disponible</div>
+        <div style={{fontSize:13,color:t.txS,display:'flex',alignItems:'center',gap:8}}>Disponible{isCycleCarry&&<span style={{fontSize:11,background:A.blue[tn]+'22',color:A.blue[tn],borderRadius:20,padding:'2px 8px'}}>💼 Ciclo de {MN[new Date(prevMon+'-01').getMonth()]}</span>}</div>
         <div style={{display:'flex',alignItems:'baseline',gap:4,marginTop:6}}>
           <span style={{fontSize:15,color:t.txS,fontWeight:500}}>$</span>
           <span style={{fontSize:46,fontWeight:700,letterSpacing:'-2px',lineHeight:1,color:avail>=0?t.tx:A.red[tn]}}>{Math.abs(avail).toLocaleString('es-CO')}</span>
@@ -451,10 +459,17 @@ function App2({user}){
         <div style={{width:28,height:28,borderRadius:8,background:A.green[tn],color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:14}}>⚡</div>
         <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500,color:t.tx}}>{autoApplied} gasto{autoApplied>1?'s':''} aplicado{autoApplied>1?'s':''} automáticamente</div><div style={{fontSize:11,color:t.txS}}>Al inicio de {MNF[new Date(mon+'-01').getMonth()]} · toca para cerrar</div></div>
       </div>}
-      {(overdue.length>0||dueSoon.length>0)&&mon===mk(NOW)&&<div onClick={()=>setSc('debts')} style={{margin:'0 16px 12px',background:A.orange[tn]+'18',border:`.5px solid ${A.orange[tn]}40`,borderRadius:14,padding:'10px 14px',display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
-        <div style={{width:28,height:28,borderRadius:8,background:A.orange[tn],color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Ic.bell s={15}/></div>
-        <div style={{flex:1}}>{overdue.length>0&&<div style={{fontSize:13,fontWeight:600,color:t.tx}}>Vencidas: {overdue.map(d=>d.name).join(', ')}</div>}{dueSoon.length>0&&<div style={{fontSize:11,color:t.txS}}>Próximas: {dueSoon.map(d=>`${d.name} día ${d.dueDay}`).join(' · ')}</div>}</div>
-        <Ic.chevR s={16} st={{color:t.txT}}/>
+      {(overdue.length>0||dueSoon.length>0)&&mon===mk(NOW)&&<div onClick={()=>setSc('debts')} style={{margin:'0 16px 12px',background:t.bgE,borderRadius:16,padding:'14px 16px',display:'flex',alignItems:'center',gap:12,cursor:'pointer'}}>
+        <div style={{width:40,height:40,borderRadius:12,background:A.red[tn],display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:20}}>💳</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+            <span style={{fontSize:15,fontWeight:600,color:t.tx}}>Deudas vencidas</span>
+            {overdue.length>0&&<span style={{background:A.red[tn],color:'#fff',fontSize:11,fontWeight:700,borderRadius:20,padding:'2px 8px',flexShrink:0}}>{overdue.length}</span>}
+          </div>
+          {overdue.length>0&&<div style={{fontSize:12,color:t.txS,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{overdue.slice(0,3).map(d=>d.name).join(' · ')}{overdue.length>3?` +${overdue.length-3} más`:''}</div>}
+          {dueSoon.length>0&&<div style={{fontSize:12,color:A.teal[tn],marginTop:3}}>⏰ Próximas: {dueSoon.map(d=>`${d.name} día ${d.dueDay}`).join(' · ')}</div>}
+        </div>
+        <Ic.chevR s={18} st={{color:t.txT}}/>
       </div>}
       
       <div style={{padding:'0 16px 16px',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
