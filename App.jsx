@@ -189,6 +189,7 @@ function App2({user}){
   const [editBC,setEditBC]=useState(null)
   const [srch,setSrch]=useState('')
   const [tmpS,setTmpS]=useState('')
+  const [salMon,setSalMon]=useState(mon)
   const [tmpB,setTmpB]=useState('')
   const [addGId,setAddGId]=useState(null)
   const [autoApplied,setAutoApplied]=useState(0)
@@ -239,16 +240,14 @@ function App2({user}){
     load()
   },[user])
 
-  // Ciclo de flujo de caja: si no hay salario en el mes actual,
-  // usar el del mes anterior (cobro de fin de mes anterior para gastos del mes actual)
+  // Ciclo de flujo de caja
   const prevMon=(()=>{const d=new Date(mon+'-01');d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7)})()
-  const salCurrent=sals[mon]??0
-  const salPrev=sals[prevMon]??0
-  // Si no hay salario este mes, usar el del mes anterior (ciclo fin de mes)
-  const sal=salCurrent>0?salCurrent:salPrev>0?salPrev:(Object.values(sals)[0]??0)
-  const isCycleCarry=salCurrent===0&&salPrev>0&&mon===mk(NOW)
   const mE=exps[mon]||[], mI=incs[mon]||[]
-  // Ingresos extra: solo los del mes actual (no salario)
+  // Buscar salario: primero el del mes actual, si no hay usar el del mes anterior
+  const salThisMon=sals[mon]||0
+  const salLastMon=sals[prevMon]||0
+  const sal=salThisMon>0?salThisMon:salLastMon
+  const isCycleCarry=salThisMon===0&&salLastMon>0
   const tInc=sal+mI.reduce((s,e)=>s+e.amount,0)
   const tSpent=mE.reduce((s,e)=>s+e.amount,0)
   const avail=tInc-tSpent
@@ -330,7 +329,7 @@ function App2({user}){
     if(row)setRecur(p=>[...p,{id:row.id,label:rF.label,amount:+rF.amt,category:rF.cat,day:rF.day,auto:rF.auto}])
     setRF({label:'',amt:'',cat:cats[0]?.id||'comidas',day:1,auto:true});closeSh();notify('Recurrente guardado ✓')
   }
-  const saveSal=async()=>{await db.upsertSalary(user.id,mon,+tmpS||0);setSals(p=>({...p,[mon]:+tmpS||0}));closeSh();notify('Salario guardado ✓')}
+  const saveSal=async()=>{await db.upsertSalary(user.id,salMon,+tmpS||0);setSals(p=>({...p,[salMon]:+tmpS||0}));closeSh();notify('Salario guardado ✓')}
   const saveBud=async id=>{await db.upsertBudget(user.id,id,+tmpB||0);setBuds(p=>({...p,[id]:+tmpB||0}));setEditBC(null);closeSh();notify('Tope guardado ✓')}
   const saveDebt=async()=>{
     if(!dF.name||!dF.bal){notify('Completa nombre y saldo','err');return}
@@ -451,7 +450,7 @@ function App2({user}){
         <div style={{display:'flex',gap:10,marginTop:16}}>
           <div style={{flex:1,display:'flex',alignItems:'center',gap:6}}><div style={{width:22,height:22,borderRadius:11,background:A.green[tn]+'28',display:'flex',alignItems:'center',justifyContent:'center',color:A.green[tn]}}><Ic.arrowDown s={12}/></div><div><div style={{fontSize:11,color:t.txS}}>Entró</div><div style={{fontSize:14,fontWeight:600,color:t.tx}}>{fmt(tInc)}</div></div></div>
           <div style={{flex:1,display:'flex',alignItems:'center',gap:6}}><div style={{width:22,height:22,borderRadius:11,background:A.red[tn]+'28',display:'flex',alignItems:'center',justifyContent:'center',color:A.red[tn]}}><Ic.arrowUp s={12}/></div><div><div style={{fontSize:11,color:t.txS}}>Salió</div><div style={{fontSize:14,fontWeight:600,color:t.tx}}>{fmt(tSpent)}</div></div></div>
-          <button onClick={()=>{setTmpS(String(sal||''));openSh('salary')}} style={{background:t.fill,border:'none',borderRadius:10,color:blue,padding:'6px 12px',fontSize:13,cursor:'pointer',fontWeight:600}}>💼 Salario</button>
+          <button onClick={()=>{setTmpS(String(salThisMon||salLastMon||''));setSalMon(salThisMon>0?mon:salLastMon>0?prevMon:mon);openSh('salary')}} style={{background:t.fill,border:'none',borderRadius:10,color:blue,padding:'6px 12px',fontSize:13,cursor:'pointer',fontWeight:600}}>💼 Salario</button>
         </div>
       </div>
 
@@ -997,7 +996,7 @@ function App2({user}){
           <div style={{width:30,height:30,borderRadius:7,background:ac('mint'),display:'flex',alignItems:'center',justifyContent:'center',color:'#fff'}}><Ic.download s={18}/></div>
           <div style={{flex:1,fontSize:16,color:t.tx}}>Exportar a CSV</div><Ic.chevR s={16} st={{color:t.txT}}/>
         </div>
-        <div onClick={()=>{setTmpS(String(sal||''));openSh('salary')}} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',cursor:'pointer'}}>
+        <div onClick={()=>{setTmpS(String(salThisMon||salLastMon||''));setSalMon(salThisMon>0?mon:salLastMon>0?prevMon:mon);openSh('salary')}} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',cursor:'pointer'}}>
           <div style={{width:30,height:30,borderRadius:7,background:blue,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff'}}><Ic.wallet s={18}/></div>
           <div style={{flex:1,fontSize:16,color:t.tx}}>Configurar salario</div><Ic.chevR s={16} st={{color:t.txT}}/>
         </div>
@@ -1100,7 +1099,11 @@ function App2({user}){
           <div style={{fontSize:17,fontWeight:600,color:t.tx}}>Salario</div>
           <button onClick={saveSal} style={{background:'none',border:'none',color:blue,fontSize:17,fontWeight:600,cursor:'pointer'}}>Guardar</button>
         </div>
-        <div style={{fontSize:14,color:t.txS,marginBottom:14}}>{MNF[new Date(mon+'-01').getMonth()]} — se guarda por mes</div>
+        <div style={{fontSize:13,color:t.txS,marginBottom:8}}>¿En qué mes recibiste este pago?</div>
+        <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+          {[prevMon,mon].map(m=><button key={m} onClick={()=>setSalMon(m)} style={{flex:1,background:salMon===m?A.blue[tn]:t.bgE2,border:'none',borderRadius:12,color:salMon===m?'#fff':t.txS,padding:'10px',fontSize:14,fontWeight:salMon===m?600:400,cursor:'pointer',fontFamily:'inherit'}}>{MNF[new Date(m+'-01').getMonth()]} {new Date(m+'-01').getFullYear()}</button>)}
+        </div>
+        {salMon===prevMon&&<div style={{background:A.blue[tn]+'18',borderRadius:10,padding:'8px 12px',marginBottom:12,fontSize:12,color:A.blue[tn]}}>💡 El pago de {MNF[new Date(prevMon+'-01').getMonth()]} se usará automáticamente en {MNF[new Date(mon+'-01').getMonth()]}</div>}
         <input value={tmpS} onChange={e=>setTmpS(e.target.value)} type="number" placeholder="Monto neto $" autoFocus style={shInp2}/>
       </div>
     </Sheet>
